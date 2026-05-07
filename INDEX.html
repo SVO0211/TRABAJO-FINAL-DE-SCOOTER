@@ -868,13 +868,13 @@ tr:hover td{background:rgba(0,170,255,.03);}
             <div class="field"><label>Fecha</label><input type="date" id="f-date"/></div>
             <div class="field"><label>Hora</label><input type="time" id="f-time"/></div>
           </div>
-          <div class="field"><label>Nombre Completo</label><input type="text" id="f-name" placeholder="Nombre del cliente" autocapitalize="characters" style="text-transform:uppercase"/></div>
-          <div class="field"><label>Documento</label><input type="text" id="f-doc" placeholder="Cédula / Pasaporte" inputmode="numeric" oninput="autoFillCliente(this.value)"/></div>
+          <div class="field"><label>Nombre Completo</label><input type="text" id="f-name" placeholder="Nombre del cliente" autocapitalize="characters" inputmode="text" enterkeyhint="next" style="text-transform:uppercase"/></div>
+          <div class="field"><label>Documento</label><input type="text" id="f-doc" placeholder="Cédula / Pasaporte" inputmode="numeric" enterkeyhint="next" oninput="autoFillCliente(this.value)"/></div>
           <div id="f-client-hint" style="display:none;background:rgba(0,170,255,.08);border:1px solid rgba(0,170,255,.25);border-radius:8px;padding:.5rem .85rem;margin-top:-.4rem;margin-bottom:.4rem;font-size:.78rem;cursor:pointer;display:none" onclick="confirmarAutoFill()">
             <span style="color:var(--accent);font-weight:700">✔ Cliente encontrado</span> — <span id="f-client-hint-name"></span> · <span id="f-client-hint-phone" style="color:var(--muted)"></span>
             <span style="float:right;color:var(--accent);font-size:.72rem">Toca para completar →</span>
           </div>
-          <div class="field"><label>Teléfono</label><input type="tel" id="f-phone" placeholder="Ej: 3001234567" inputmode="tel" autocomplete="tel"/></div>
+          <div class="field"><label>Teléfono</label><input type="tel" id="f-phone" placeholder="Ej: 3001234567" inputmode="tel" autocomplete="tel" enterkeyhint="done"/></div>
           <div class="field"><label>Cantidad de Scooters (1-20)</label>
             <select id="f-qty"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option></select>
           </div>
@@ -1791,7 +1791,7 @@ function gotoView(v){
   var _ve=document.getElementById('view-'+v);if(_ve)_ve.classList.add('active');;
   document.querySelectorAll('[data-view="'+v+'"]').forEach(e=>e.classList.add('active'));
   document.getElementById('content-area').scrollTop=0;
-  const fn={'mi-perfil':renderMiPerfil,dashboard:refreshDashboard,pending:()=>renderCards(currentFilter),history:renderHistory,tickets:renderTicketsHistory,caja:renderCaja,'scooter-hist':renderScooterHist,waitlist:function(){renderWaitlist();renderWaitlistStats();renderWaitlistHistory();},clients:renderClients,users:function(){renderUsers();renderSessionMonitor();if(CU&&CU.role==='gerente')renderCierreSupervisor();},scooters:renderScooters,pricing:renderPricing,'stands-config':renderStandsConfig,stats:renderStats,scanner:()=>{refreshScanSelect();renderScPanel();}};
+  const fn={'mi-perfil':renderMiPerfil,dashboard:refreshDashboard,pending:()=>renderCards(currentFilter),history:renderHistory,tickets:renderTicketsHistory,caja:renderCaja,'scooter-hist':renderScooterHist,waitlist:function(){renderWaitlist();renderWaitlistStats();renderWaitlistHistory();},clients:renderClients,users:function(){renderUsers();renderSessionMonitor();if(CU&&CU.role==='gerente')renderCierreSupervisor();},scooters:renderScooters,pricing:renderPricing,'stands-config':renderStandsConfig,stats:renderStats,scanner:()=>{refreshScanSelect();renderScPanel();},'new-rental':function(){setDT();setTimeout(function(){var inp=document.getElementById('f-name');if(inp)inp.focus();},300);}};
   if(fn[v])fn[v]();
 }
 
@@ -2477,7 +2477,6 @@ function setScanMode(mode){
   hint.textContent=mode==='salida'?'Modo Salida — escanea cada scooter uno por uno al entregarlo.':'Modo Retorno — escanea cada scooter al recibirlo. Ticket al retornar todos.';
   hint.className='alert '+(mode==='salida'?'alert-info':'alert-amber');
   refreshScanSelect();
-  setTimeout(function(){var sel=document.getElementById('scan-rental-select');var inp=document.getElementById('scan-code');if(sel&&sel.value&&inp){inp.focus();inp.select();}},150);
 }
 function refreshScanSelect(){
   const stand=myStand();let rs=rs4s(stand==='Todos'?'all':stand);
@@ -2492,7 +2491,7 @@ function refreshScanSelect(){
   }).join('');
   if(cur)sel.value=cur;
 }
-function onSelectRental(){document.getElementById('scan-code').value='';document.getElementById('scan-result').style.display='none';renderScPanel();var inp=document.getElementById('scan-code');if(document.getElementById('scan-rental-select').value&&inp){setTimeout(function(){inp.focus();inp.select();},100);}}
+function onSelectRental(){document.getElementById('scan-code').value='';document.getElementById('scan-result').style.display='none';renderScPanel();var rid=document.getElementById('scan-rental-select').value;if(rid){setTimeout(function(){var inp=document.getElementById('scan-code');if(inp){inp.focus();inp.click();}},200);}}
 function renderScPanel(){
   const rentalId=document.getElementById('scan-rental-select').value;
   const nameEl=document.getElementById('sc-panel-client');const rowsCont=document.getElementById('sc-rows-container');const sumEl=document.getElementById('sc-panel-summary');
