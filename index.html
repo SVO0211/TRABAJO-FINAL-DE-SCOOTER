@@ -12,7 +12,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="SCOOTER">
-<link rel="apple-touch-icon" id="apple-icon">
+<link rel="icon" href="logo.jpeg" type="image/jpeg">
+<link rel="apple-touch-icon" href="logo.jpeg">
 <link rel="manifest" id="pwa-manifest">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <!-- Firebase SDK -->
@@ -642,7 +643,7 @@ tr:hover td{background:rgba(0,170,255,.03);}
 <div id="view-login">
   <div class="login-box">
     <div class="login-logo">
-      <img src="" id="logo-login" alt="SCOOTER" style="height:90px;object-fit:contain;-o-object-fit:contain;display:block;margin:0 auto">
+      <img src="logo.jpeg" id="logo-login" alt="SCOOTER" style="height:110px;object-fit:contain;-o-object-fit:contain;display:block;margin:0 auto">
       <div class="brand-sub">Sistema de Arrendamiento</div>
     </div>
     <div class="login-card">
@@ -1735,8 +1736,7 @@ function populateStandSelects(){
 
 // ══ PWA ══
 function buildManifest(){
-  const iconB64='iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAABmJLR0QA/wD/AP+gvaeTAAAA20lEQVR4nO3BMQEAAADCoPVP7WsIoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAeAMBuAABHgAAAABJRU5ErkJggg==';
-  const manifest={name:'SCOOTER',short_name:'SCOOTER',description:'Sistema de Arrendamiento de Scooters',start_url:'.',display:'standalone',background_color:'#000d1a',theme_color:'#00aaff',orientation:'any',icons:[{src:'data:image/png;base64,'+iconB64,sizes:'192x192',type:'image/png',purpose:'any maskable'}]};
+  const manifest={name:'SCOOTER',short_name:'SCOOTER',description:'Sistema de Arrendamiento de Scooters',start_url:'.',display:'standalone',background_color:'#000d1a',theme_color:'#00aaff',orientation:'any',icons:[{src:'logo.jpeg',sizes:'192x192',type:'image/jpeg',purpose:'any maskable'},{src:'logo.jpeg',sizes:'512x512',type:'image/jpeg',purpose:'any maskable'}]};
   const blob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
   document.getElementById('pwa-manifest').href=URL.createObjectURL(blob);
 }
