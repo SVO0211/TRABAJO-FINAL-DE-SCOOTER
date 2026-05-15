@@ -2485,6 +2485,7 @@ function openContratoModal(){
   document.getElementById('contrato-nombre').textContent=name;
   document.getElementById('contrato-cedula').textContent=doc;
   document.getElementById('contrato-celular').textContent=phone;
+  var standEl=document.getElementById('contrato-stand');if(standEl)standEl.textContent=document.getElementById('f-stand').value||'—';
   document.getElementById('contrato-firma').textContent=name;
   var body=document.getElementById('contrato-body');
   var btn=document.getElementById('contrato-accept-btn');
@@ -8225,6 +8226,7 @@ setDT();
           <tr><td style="padding:.3rem 0;color:var(--muted);width:90px;vertical-align:top">Nombre:</td><td><span id="contrato-nombre" class="contrato-field" style="min-width:200px"></span></td></tr>
           <tr><td style="padding:.3rem 0;color:var(--muted);vertical-align:top">Cédula:</td><td><span id="contrato-cedula" class="contrato-field" style="min-width:180px"></span></td></tr>
           <tr><td style="padding:.3rem 0;color:var(--muted);vertical-align:top">Celular:</td><td><span id="contrato-celular" class="contrato-field" style="min-width:180px"></span></td></tr>
+          <tr><td style="padding:.3rem 0;color:var(--muted);vertical-align:top">Stand:</td><td><span id="contrato-stand" class="contrato-field" style="min-width:150px"></span></td></tr>
           <tr><td style="padding:.3rem 0;color:var(--muted);vertical-align:top">Scooter:</td><td><span class="contrato-field" style="min-width:180px;color:var(--muted);font-weight:400;font-style:italic">Se asigna al escanear</span></td></tr>
         </table>
       </div>
