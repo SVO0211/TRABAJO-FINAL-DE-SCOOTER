@@ -2598,6 +2598,7 @@ function _buildContratoHTML(ct){
     +'<tr><td>Nombre:</td><td>'+(ct.clientName||'—')+'</td></tr>'
     +'<tr><td>Cédula:</td><td>'+(ct.clientDoc||'—')+'</td></tr>'
     +'<tr><td>Celular:</td><td>'+(ct.clientPhone||'—')+'</td></tr>'
+    +'<tr><td>Stand:</td><td>'+(ct.stand||'—')+'</td></tr>'
     +'<tr><td>Scooter(s):</td><td>'+(ct.qty||1)+' unidad'+((+(ct.qty||1))>1?'es':'')+'</td></tr>'
     +'</table></div>'
     +'<div class="firma"><div class="firma-label">Firma del Arrendatario</div>'
@@ -2633,6 +2634,7 @@ function viewContrato(rentalId){
   document.getElementById('vct-nombre').textContent=ct.clientName||'—';
   document.getElementById('vct-cedula').textContent=ct.clientDoc||'—';
   document.getElementById('vct-celular').textContent=ct.clientPhone||'—';
+  document.getElementById('vct-stand').textContent=ct.stand||'—';
   document.getElementById('vct-qty').textContent=(ct.qty||1)+' unidad'+((ct.qty||1)>1?'es':'');
   document.getElementById('vct-firma').textContent=ct.clientName||'—';
   document.getElementById('vct-firma-fecha').textContent=dd+'/'+mm+'/'+yyyy;
@@ -8274,6 +8276,7 @@ setDT();
           <tr><td style="padding:.3rem 0;color:var(--muted);width:90px;vertical-align:top">Nombre:</td><td><span id="vct-nombre" class="contrato-field" style="min-width:200px"></span></td></tr>
           <tr><td style="padding:.3rem 0;color:var(--muted);vertical-align:top">Cédula:</td><td><span id="vct-cedula" class="contrato-field" style="min-width:180px"></span></td></tr>
           <tr><td style="padding:.3rem 0;color:var(--muted);vertical-align:top">Celular:</td><td><span id="vct-celular" class="contrato-field" style="min-width:180px"></span></td></tr>
+          <tr><td style="padding:.3rem 0;color:var(--muted);vertical-align:top">Stand:</td><td><span id="vct-stand" class="contrato-field" style="min-width:150px"></span></td></tr>
           <tr><td style="padding:.3rem 0;color:var(--muted);vertical-align:top">Scooter:</td><td><span id="vct-qty" class="contrato-field" style="min-width:120px"></span></td></tr>
         </table>
       </div>
