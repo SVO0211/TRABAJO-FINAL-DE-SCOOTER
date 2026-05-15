@@ -1873,11 +1873,24 @@ function gotoView(v){
   var _ve=document.getElementById('view-'+v);if(_ve)_ve.classList.add('active');
   document.querySelectorAll('[data-view="'+v+'"]').forEach(e=>e.classList.add('active'));
   document.getElementById('content-area').scrollTop=0;
-  const fn={'mi-perfil':renderMiPerfil,dashboard:refreshDashboard,pending:()=>renderCards(currentFilter),history:renderHistory,tickets:renderTicketsHistory,caja:renderCaja,'scooter-hist':renderScooterHist,waitlist:function(){renderWaitlist();renderWaitlistStats();renderWaitlistHistory();},clients:renderClients,users:function(){renderUsers();renderSessionMonitor();if(CU&&CU.role==='gerente')renderCierreSupervisor();},scooters:renderScooters,pricing:renderPricing,'stands-config':renderStandsConfig,stats:renderStats,scanner:()=>{refreshScanSelect();renderScPanel();},'new-rental':function(){setDT();setTimeout(function(){var inp=document.getElementById('f-name');if(inp)inp.focus();},300);}};
+  const fn={'mi-perfil':renderMiPerfil,dashboard:refreshDashboard,pending:()=>renderCards(currentFilter),history:renderHistory,tickets:renderTicketsHistory,caja:renderCaja,'scooter-hist':renderScooterHist,waitlist:function(){_lockStandSelect('wl-stand');renderWaitlist();renderWaitlistStats();renderWaitlistHistory();},clients:renderClients,users:function(){renderUsers();renderSessionMonitor();if(CU&&CU.role==='gerente')renderCierreSupervisor();},scooters:renderScooters,pricing:renderPricing,'stands-config':renderStandsConfig,stats:renderStats,scanner:()=>{refreshScanSelect();renderScPanel();},'new-rental':function(){setDT();_lockStandSelect('f-stand');setTimeout(function(){var inp=document.getElementById('f-name');if(inp)inp.focus();},300);}};
   if(fn[v])fn[v]();
 }
 
 // ══ HELPERS ══
+// Bloquea un select al stand del usuario — siempre llamar al navegar a formularios
+function _lockStandSelect(id){
+  var el=document.getElementById(id);if(!el)return;
+  if(!CU||CU.role==='gerente'||!CU.stand||CU.stand===''||CU.stand==='Todos'){
+    el.disabled=false;return; // gerente: selects libres
+  }
+  var s=CU.stand;
+  el.innerHTML='<option value="'+s+'">'+s+'</option>';
+  el.value=s;
+  el.disabled=true;
+  el.style.opacity='1';
+  el.style.cursor='default';
+}
 function toast(m,d=2800){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),d);}
 function setDT(){const n=new Date();document.getElementById('f-date').value=n.toISOString().split('T')[0];document.getElementById('f-time').value=n.toTimeString().slice(0,5);}
 function fT(ts){if(!ts)return'—';return new Date(ts).toTimeString().slice(0,5);}
@@ -3286,11 +3299,16 @@ function renderUsers(){
     // Role selector (gerente only)
     const roleSel=isG?`<select onchange="updateUserField('${u.username}','role',this.value)" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:.25rem .6rem;color:var(--text);font-family:var(--font);font-size:.78rem;outline:none;"><option value="gerente"${u.role==='gerente'?' selected':''}>Gerente</option><option value="admin"${u.role==='admin'?' selected':''}>Caja</option><option value="operativo"${u.role==='operativo'?' selected':''}>Pistolero</option></select>`:
       `<span class="role-tag ${rc}">${lb}</span>`;
+    // Stand selector (gerente asigna stand a no-gerentes)
+    const selectStyle='background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:.25rem .6rem;color:var(--text);font-family:var(--font);font-size:.78rem;outline:none;';
+    const standSel=isG&&u.role!=='gerente'
+      ?`<select onchange="updateUserField('${u.username}','stand',this.value)" style="${selectStyle}" title="Stand asignado"><option value="">📍 Sin stand</option>${stands.map(s=>`<option value="${s}"${u.stand===s?' selected':''}>📍 ${s}</option>`).join('')}</select>`
+      :(u.stand&&u.stand!=='Todos'?`<span style="font-size:.75rem;color:var(--accent)">📍 ${u.stand}</span>`:'');
     return`<div class="user-card">
       <div class="user-avatar" onclick="triggerAvatarUpload('${u.username}')">${avatarHtml}<div class="avatar-overlay">📷<br>Cambiar</div></div>
       <div class="user-info">
         <div class="u-name">${u.fullName||u.username} <span style="font-size:.75rem;color:var(--muted);font-weight:400">@${u.username}</span></div>
-        <div class="u-meta" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:.3rem">${roleSel}</div>
+        <div class="u-meta" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-top:.3rem">${roleSel}${standSel}</div>
         ${(function(){
           if(!u.birthday)return "";
           var _bd=new Date(u.birthday+"T12:00:00"),_td=new Date();
@@ -7207,7 +7225,12 @@ function doLogin(){
     completarLogin(found, found.stand||'Todos');
     return;
   }
-  // Admin / Operativo → mostrar selector de stand
+  // Admin / Operativo → si tiene stand asignado en perfil, usarlo directo
+  if(found.stand && found.stand !== '' && found.stand !== 'Todos'){
+    completarLogin(found, found.stand);
+    return;
+  }
+  // Sin stand asignado → mostrar selector (solo la primera vez)
   _pendingUser = found;
   showStandSelector(found);
 }
@@ -7243,6 +7266,10 @@ function elegirStand(stand){
   if(!_pendingUser) return;
   var sel = document.getElementById('stand-selector');
   if(sel) sel.style.display = 'none';
+  // Persistir el stand elegido en el perfil del usuario
+  var users = LS.get('sr_users') || [];
+  var idx = users.findIndex(function(u){ return u.username === _pendingUser.username; });
+  if(idx >= 0){ users[idx].stand = stand; LS.set('sr_users', users); }
   completarLogin(_pendingUser, stand);
   _pendingUser = null;
 }
