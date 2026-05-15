@@ -1775,24 +1775,38 @@ checkDailySnapshot();
 // ══ STANDS ══
 function populateStandSelects(){
   const stands=getStands();
-  // wl-stand: no "all" option
-  const wlSel=document.getElementById('wl-stand');
-  if(wlSel){const cur=wlSel.value;wlSel.innerHTML=stands.map(s=>`<option value="${s}">${s}</option>`).join('');if(cur)wlSel.value=cur;}
-  // wl-stand-filter: with "all" option
+  // Stand asignado al usuario (null = gerente, ve todos)
+  const userStand=(CU&&CU.role!=='gerente'&&CU.stand&&CU.stand!==''&&CU.stand!=='Todos')?CU.stand:null;
+
+  // Helper: selects de formulario — bloqueados al stand del usuario si no es gerente
+  function setFormStand(id){
+    const el=document.getElementById(id);if(!el)return;
+    if(userStand){
+      el.innerHTML=`<option value="${userStand}">${userStand}</option>`;
+      el.value=userStand;
+      el.disabled=true;
+      el.title='Stand asignado a tu cuenta';
+    } else {
+      el.disabled=false;el.title='';
+      const cur=el.value;
+      el.innerHTML=stands.map(s=>`<option value="${s}">${s}</option>`).join('');
+      if(cur&&[...el.options].some(o=>o.value===cur))el.value=cur;
+    }
+  }
+
+  // Formularios de operación: f-stand (Nueva Renta), wl-stand (Fila Espera), ns-stand (Nuevo Scooter)
+  setFormStand('f-stand');
+  setFormStand('wl-stand');
+  setFormStand('ns-stand');
+
+  // wl-stand-filter: con opción "all" (siempre libre, es filtro de vista)
   const wlSf=document.getElementById('wl-stand-filter');
   if(wlSf){const cur=wlSf.value;wlSf.innerHTML='<option value="all">Todos los stands</option>'+stands.map(s=>`<option value="${s}">${s}</option>`).join('');if(cur)wlSf.value=cur;}
-  // selects with "all" option
+  // Filtros de vista: siempre muestran todos los stands
   ['dash-stand-filter','hist-stand-filter','stats-stand-filter','export-stand','sh-stand-filter'].forEach(id=>{
     const el=document.getElementById(id);if(!el)return;
     const cur=el.value;
     el.innerHTML='<option value="all">Todos los stands</option>'+stands.map(s=>`<option value="${s}">${s}</option>`).join('');
-    if(cur&&[...el.options].some(o=>o.value===cur))el.value=cur;
-  });
-  // stand-only selects
-  ['f-stand','ns-stand'].forEach(id=>{
-    const el=document.getElementById(id);if(!el)return;
-    const cur=el.value;
-    el.innerHTML=stands.map(s=>`<option value="${s}">${s}</option>`).join('');
     if(cur&&[...el.options].some(o=>o.value===cur))el.value=cur;
   });
 }
@@ -2523,10 +2537,14 @@ function _buildContratoHTML(ct){
   var d=new Date(ct.signedAt||Date.now());
   var dd=String(d.getDate()).padStart(2,'0'),mm=String(d.getMonth()+1).padStart(2,'0'),yyyy=d.getFullYear();
   var hh=String(d.getHours()).padStart(2,'0'),mi=String(d.getMinutes()).padStart(2,'0');
+  // URL absoluta del logo (el browser ya la resolvió en el img#logo-login)
+  var logoSrc=(document.getElementById('logo-login')||{}).src||'';
+  var logoHtml=logoSrc?'<div style="text-align:center;margin-bottom:10px"><img src="'+logoSrc+'" style="height:72px;object-fit:contain" alt="SCOOTER"></div>':'';
   return'<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Contrato '+(ct.clientName||'')+'</title>'
     +'<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">'
     +'<style>@page{size:A4;margin:18mm}body{font-family:Arial,sans-serif;font-size:11pt;color:#000;background:#fff}'
-    +'h1{text-align:center;font-size:14pt;margin-bottom:3px}h1 span{font-size:9pt;color:#666;display:block;font-weight:400}'
+    +'.hdr{text-align:center;border-bottom:2px solid #0066cc;padding-bottom:10px;margin-bottom:14px}'
+    +'h1{font-size:14pt;margin:4px 0 2px}h1 span{font-size:9pt;color:#666;display:block;font-weight:400}'
     +'.sec{border-left:3px solid #0066cc;padding:8px 12px;margin:12px 0;background:#f0f7ff}'
     +'.sec strong{display:block;margin-bottom:5px}ol{padding-left:1.2rem;margin:.3rem 0}ol li{margin-bottom:5px}'
     +'table{width:100%;border-collapse:collapse;margin-top:6px}td{padding:4px 2px;vertical-align:top}'
@@ -2537,7 +2555,9 @@ function _buildContratoHTML(ct){
     +'.firma-label{font-size:8pt;color:#666;letter-spacing:1px;text-transform:uppercase;margin-top:3px}'
     +'.stamp{display:inline-block;border:4px solid #00a830;border-radius:8px;padding:4px 14px;color:#00a830;font-weight:900;font-size:13pt;letter-spacing:4px;transform:rotate(-8deg);margin-top:14px}'
     +'</style></head><body>'
+    +'<div class="hdr">'+logoHtml
     +'<h1>CONTRATO DE ALQUILER DE SCOOTER<span>NIT 1001394543-2'+(ct.consecutivo?' · Renta #'+ct.consecutivo:'')+'</span></h1>'
+    +'</div>'
     +'<p><strong>Fecha:</strong> '+dd+' / '+mm+' / '+yyyy+' &nbsp;–&nbsp; '+hh+':'+mi+'</p>'
     +'<p style="margin:10px 0;line-height:1.6">El presente documento regula el alquiler temporal de scooter dentro de las instalaciones del centro comercial.</p>'
     +'<div class="sec"><strong>CONDICIONES:</strong><ol>'
