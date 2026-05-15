@@ -1206,6 +1206,13 @@ tr:hover td{background:rgba(0,170,255,.03);}
       <!-- STANDS CONFIG -->
       <div class="view-section" id="view-stands-config">
         <div class="page-title">Configurar Stands<div class="sub">Personaliza los nombres</div></div>
+        <div class="form-card" style="margin-bottom:1.25rem">
+          <div class="section-title">Nuevo Stand</div>
+          <div class="form-row">
+            <div class="field"><label>Nombre del Stand</label><input type="text" id="new-stand-name" placeholder="ej: Stand A" autocapitalize="words"/></div>
+          </div>
+          <div class="form-actions"><button class="btn" onclick="addStand()">+ Crear Stand</button></div>
+        </div>
         <div id="stands-config-grid"></div>
         <div style="margin-top:1rem;padding:.85rem 1rem;background:var(--bg3);border-radius:8px;font-size:.8rem;color:var(--muted);line-height:1.6">
           Al renombrar un stand el cambio se propaga a toda la app: formularios, filtros, tarifas y scooters.
@@ -1227,6 +1234,9 @@ tr:hover td{background:rgba(0,170,255,.03);}
           <div class="form-row">
             <div class="field"><label>Rol</label>
               <select id="nu-role"><option value="admin">Caja</option><option value="operativo">Pistolero</option><option value="gerente">Gerente</option></select>
+            </div>
+            <div class="field"><label>Stand</label>
+              <select id="nu-stand"><option value="">Sin asignar</option></select>
             </div>
           </div>
           <div class="form-row">
@@ -1798,6 +1808,10 @@ function populateStandSelects(){
   setFormStand('f-stand');
   setFormStand('wl-stand');
   setFormStand('ns-stand');
+
+  // nu-stand: selector en formulario "Nuevo Usuario" — siempre muestra todos los stands
+  const nuSt=document.getElementById('nu-stand');
+  if(nuSt){const cur=nuSt.value;nuSt.innerHTML='<option value="">Sin asignar</option>'+stands.map(s=>`<option value="${s}">${s}</option>`).join('');if(cur)nuSt.value=cur;}
 
   // wl-stand-filter: con opción "all" (siempre libre, es filtro de vista)
   const wlSf=document.getElementById('wl-stand-filter');
@@ -3222,6 +3236,34 @@ function savePrice(stand){
 }
 
 // ══ STANDS CONFIG ══
+function addStand(){
+  var nameEl=document.getElementById('new-stand-name');
+  var name=(nameEl?nameEl.value:'').trim();
+  if(!name){toast('Escribe el nombre del stand');return;}
+  var stands=getStands();
+  if(stands.map(s=>s.toLowerCase()).includes(name.toLowerCase())){toast('Ese stand ya existe');return;}
+  stands.push(name);
+  LS.set('sr_stands',stands);
+  var pricing=LS.get('sr_pricing')||{};
+  if(!pricing[name])pricing[name]={type:'estandar',ppm:1000};
+  LS.set('sr_pricing',pricing);
+  if(nameEl)nameEl.value='';
+  populateStandSelects();
+  renderStandsConfig();
+  renderPricing();
+  toast('✔ Stand "'+name+'" creado');
+}
+function deleteStand(i){
+  var stands=getStands();
+  var name=stands[i];
+  if(!confirm('¿Eliminar el stand "'+name+'"? Esta acción no se puede deshacer.'))return;
+  stands.splice(i,1);
+  LS.set('sr_stands',stands);
+  populateStandSelects();
+  renderStandsConfig();
+  renderPricing();
+  toast('Stand "'+name+'" eliminado');
+}
 function renderStandsConfig(){
   const stands=getStands();
   document.getElementById('stands-config-grid').innerHTML=stands.map((s,i)=>`
@@ -3230,6 +3272,7 @@ function renderStandsConfig(){
       <div class="stand-edit-row">
         <input type="text" id="sc-${i}" value="${s}" placeholder="Nombre del stand"/>
         <button class="btn btn-sm" style="min-height:44px;white-space:nowrap" onclick="saveStandName(${i})">Guardar</button>
+        <button class="btn btn-sm" style="min-height:44px;background:var(--accent3);border-color:var(--accent3);white-space:nowrap" onclick="deleteStand(${i})">✕ Eliminar</button>
       </div>
     </div>`).join('');
 }
@@ -3266,11 +3309,14 @@ function createUser(){
   var email=document.getElementById('nu-email').value.trim();
   var phone=document.getElementById('nu-phone').value.trim();
   var birthday=document.getElementById('nu-birthday').value;
-  us.push({username:u,password:p,role,stand:'',joinedAt:Date.now(),createdBy:CU.username,
+  var nuStandEl=document.getElementById('nu-stand');
+  var stand=nuStandEl?nuStandEl.value:'';
+  us.push({username:u,password:p,role,stand:stand,joinedAt:Date.now(),createdBy:CU.username,
     fullName:fullname||u,email:email||'',phone:phone||'',birthday:birthday||''});
   LS.set('sr_users',us);
   ['nu-fullname','nu-email','nu-phone','nu-birthday'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('nu-user').value='';document.getElementById('nu-pass').value='';
+  if(nuStandEl)nuStandEl.value='';
   toast('✔ Usuario creado');renderUsers();
 }
 function deleteUser(u){
