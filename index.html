@@ -637,7 +637,9 @@ tr:hover td{background:rgba(0,170,255,.03);}
 }
 /* ═══ MODALES DOCUMENTOS LEGALES ═══ */
 .doc-overlay{position:fixed;inset:0;background:rgba(0,13,26,.88);backdrop-filter:blur(4px);z-index:8500;display:flex;align-items:flex-end;justify-content:center;padding:0;}
-.doc-modal{background:var(--bg2);border:1px solid var(--accent);border-radius:18px 18px 0 0;width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,170,255,.25);}
+.doc-modal{position:relative;background:var(--bg2);border:1px solid var(--accent);border-radius:18px 18px 0 0;width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,170,255,.25);}
+.contrato-stamp{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-28deg);font-size:2.6rem;font-weight:900;color:rgba(0,200,80,.22);border:5px solid rgba(0,200,80,.22);padding:.4rem 1.2rem;border-radius:10px;letter-spacing:5px;pointer-events:none;user-select:none;white-space:nowrap;z-index:10;display:none;}
+.doc-modal-ftr.preview-ftr{border-top-color:rgba(0,200,80,.4);display:none;}
 .doc-modal-hdr{padding:1rem 1.25rem .75rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
 .doc-modal-hdr h3{font-size:1rem;font-weight:700;color:var(--accent);margin:0;}
 .doc-modal-body{flex:1;overflow-y:auto;padding:1rem 1.25rem;font-size:.88rem;line-height:1.7;color:var(--text);}
@@ -1054,9 +1056,19 @@ tr:hover td{background:rgba(0,170,255,.03);}
 
       <!-- TICKETS HISTORIAL -->
       <div class="view-section" id="view-tickets">
-        <div class="page-title">Historial de Tickets<div class="sub">Busca por cliente, documento o teléfono</div></div>
-        <input type="text" class="ticket-search" id="ticket-search" placeholder="🔍  Buscar por nombre, documento o teléfono..." oninput="renderTicketsHistory()" autocomplete="off"/>
-        <div id="tickets-list"></div>
+        <div class="page-title">Historial<div class="sub">Tickets y contratos firmados</div></div>
+        <div class="tab-bar">
+          <div class="tab active" id="tab-tkt" onclick="switchTicketTab('tickets',this)">🎫 Tickets</div>
+          <div class="tab" id="tab-ct" onclick="switchTicketTab('contratos',this)">📄 Contratos</div>
+        </div>
+        <div id="panel-tickets">
+          <input type="text" class="ticket-search" id="ticket-search" placeholder="🔍  Buscar por nombre, documento o teléfono..." oninput="renderTicketsHistory()" autocomplete="off"/>
+          <div id="tickets-list"></div>
+        </div>
+        <div id="panel-contratos" style="display:none">
+          <input type="text" class="ticket-search" id="contratos-search" placeholder="🔍  Buscar contrato por nombre, documento o teléfono..." oninput="renderContratosHistory()" autocomplete="off"/>
+          <div id="contratos-list"></div>
+        </div>
       </div>
 
 
@@ -2387,9 +2399,10 @@ function resetRentalForm(){
   var co=document.getElementById('contrato-check');if(co){co.checked=false;co.disabled=true;}
   ['tc-check-row','contrato-check-row'].forEach(function(id){var r=document.getElementById(id);if(r)r.classList.remove('accepted');});
   ['tc-badge','contrato-badge'].forEach(function(id){var b=document.getElementById(id);if(b){b.textContent='Pendiente';b.className='doc-btn-badge';}});
+  _pendingContrato=null;
 }
 // ══ DOCUMENTOS LEGALES ══
-var _contratoTimer=null;
+var _contratoTimer=null,_pendingContrato=null,_viewingContrato=null;
 
 function syncCheckRow(type){
   var row=document.getElementById(type+'-check-row');
@@ -2467,15 +2480,156 @@ function onContratoScroll(el){
 }
 function acceptContrato(){
   if(_contratoTimer){clearInterval(_contratoTimer);_contratoTimer=null;}
+  // Guardar datos del contrato
+  _pendingContrato={
+    id:'CT'+Date.now(),rentalId:null,consecutivo:null,
+    clientName:(document.getElementById('contrato-nombre').textContent||'').trim(),
+    clientDoc:(document.getElementById('contrato-cedula').textContent||'').trim(),
+    clientPhone:(document.getElementById('contrato-celular').textContent||'').trim(),
+    stand:document.getElementById('f-stand').value,
+    qty:parseInt(document.getElementById('f-qty').value)||1,
+    date:document.getElementById('f-date').value,
+    signedAt:Date.now()
+  };
   var ck=document.getElementById('contrato-check');
   ck.disabled=false;ck.checked=true;syncCheckRow('contrato');
   var b=document.getElementById('contrato-badge');
   if(b){b.textContent='✔ Firmado';b.className='doc-btn-badge ok';}
-  closeContratoModal();
+  // Activar preview: sello + footer imprimir
+  var sf=document.getElementById('contrato-sign-ftr');
+  var pf=document.getElementById('contrato-preview-ftr');
+  var stamp=document.getElementById('contrato-stamp');
+  if(sf)sf.style.display='none';
+  if(pf)pf.style.display='flex';
+  if(stamp)stamp.style.display='block';
+  var body=document.getElementById('contrato-body');
+  if(body)setTimeout(function(){body.scrollTop=body.scrollHeight;},120);
 }
 function closeContratoModal(){
   if(_contratoTimer){clearInterval(_contratoTimer);_contratoTimer=null;}
+  var sf=document.getElementById('contrato-sign-ftr');
+  var pf=document.getElementById('contrato-preview-ftr');
+  var stamp=document.getElementById('contrato-stamp');
+  if(sf)sf.style.display='flex';
+  if(pf)pf.style.display='none';
+  if(stamp)stamp.style.display='none';
+  var btn=document.getElementById('contrato-accept-btn');
+  if(btn)btn.disabled=true;
   document.getElementById('contrato-overlay').style.display='none';
+}
+
+// ── PRINT / PDF ──
+function _buildContratoHTML(ct){
+  var d=new Date(ct.signedAt||Date.now());
+  var dd=String(d.getDate()).padStart(2,'0'),mm=String(d.getMonth()+1).padStart(2,'0'),yyyy=d.getFullYear();
+  var hh=String(d.getHours()).padStart(2,'0'),mi=String(d.getMinutes()).padStart(2,'0');
+  return'<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Contrato '+(ct.clientName||'')+'</title>'
+    +'<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">'
+    +'<style>@page{size:A4;margin:18mm}body{font-family:Arial,sans-serif;font-size:11pt;color:#000;background:#fff}'
+    +'h1{text-align:center;font-size:14pt;margin-bottom:3px}h1 span{font-size:9pt;color:#666;display:block;font-weight:400}'
+    +'.sec{border-left:3px solid #0066cc;padding:8px 12px;margin:12px 0;background:#f0f7ff}'
+    +'.sec strong{display:block;margin-bottom:5px}ol{padding-left:1.2rem;margin:.3rem 0}ol li{margin-bottom:5px}'
+    +'table{width:100%;border-collapse:collapse;margin-top:6px}td{padding:4px 2px;vertical-align:top}'
+    +'td:first-child{color:#666;width:90px}td:last-child{border-bottom:1px solid #ccc}'
+    +'.firma{margin-top:28px;text-align:center;border-top:1px solid #ccc;padding-top:14px}'
+    +'.firma-cursiva{font-family:"Dancing Script",cursive;font-size:30pt;color:#0066cc;margin:6px 0}'
+    +'.firma-line{border-top:2px solid #999;width:240px;margin:4px auto}'
+    +'.firma-label{font-size:8pt;color:#666;letter-spacing:1px;text-transform:uppercase;margin-top:3px}'
+    +'.stamp{display:inline-block;border:4px solid #00a830;border-radius:8px;padding:4px 14px;color:#00a830;font-weight:900;font-size:13pt;letter-spacing:4px;transform:rotate(-8deg);margin-top:14px}'
+    +'</style></head><body>'
+    +'<h1>CONTRATO DE ALQUILER DE SCOOTER<span>NIT 1001394543-2'+(ct.consecutivo?' · Renta #'+ct.consecutivo:'')+'</span></h1>'
+    +'<p><strong>Fecha:</strong> '+dd+' / '+mm+' / '+yyyy+' &nbsp;–&nbsp; '+hh+':'+mi+'</p>'
+    +'<p style="margin:10px 0;line-height:1.6">El presente documento regula el alquiler temporal de scooter dentro de las instalaciones del centro comercial.</p>'
+    +'<div class="sec"><strong>CONDICIONES:</strong><ol>'
+    +'<li>El arrendatario declara conocer y cumplir las normas de uso y seguridad, las cuales serán informadas por el arrendador y estarán disponibles en el staff.</li>'
+    +'<li>El uso del scooter es bajo la exclusiva responsabilidad del arrendatario y/o acudiente (en caso de menores).</li>'
+    +'<li>El arrendatario responde por cualquier daño, pérdida o perjuicio causado a terceros, bienes o el scooter.</li>'
+    +'<li>Se deja en garantía un documento diferente a la cédula, el cual será devuelto al finalizar el servicio.</li>'
+    +'<li>El arrendador no se hace responsable por accidentes derivados del uso indebido o negligente.</li>'
+    +'</ol></div>'
+    +'<div class="sec"><strong>DATOS DEL ARRENDATARIO:</strong><table>'
+    +'<tr><td>Nombre:</td><td>'+(ct.clientName||'—')+'</td></tr>'
+    +'<tr><td>Cédula:</td><td>'+(ct.clientDoc||'—')+'</td></tr>'
+    +'<tr><td>Celular:</td><td>'+(ct.clientPhone||'—')+'</td></tr>'
+    +'<tr><td>Scooter(s):</td><td>'+(ct.qty||1)+' unidad'+((+(ct.qty||1))>1?'es':'')+'</td></tr>'
+    +'</table></div>'
+    +'<div class="firma"><div class="firma-label">Firma del Arrendatario</div>'
+    +'<div class="firma-cursiva">'+(ct.clientName||'—')+'</div>'
+    +'<div class="firma-line"></div>'
+    +'<div class="firma-label">'+(ct.clientName||'—')+'</div>'
+    +'<div class="firma-label">'+dd+'/'+mm+'/'+yyyy+'</div>'
+    +'<div class="stamp">FIRMADO ✓</div></div>'
+    +'</body></html>';
+}
+function _openPrintWin(html){
+  var w=window.open('','_blank','width=760,height=950,scrollbars=yes');
+  if(!w){toast('Permite ventanas emergentes para imprimir');return;}
+  w.document.open();w.document.write(html);w.document.close();
+  w.onload=function(){setTimeout(function(){w.print();},400);};
+  toast('Ventana abierta — elige "Guardar como PDF" en la impresora');
+}
+function printContratoActivo(){
+  if(!_pendingContrato){toast('Sin contrato activo');return;}
+  _openPrintWin(_buildContratoHTML(_pendingContrato));
+}
+
+// ── VER CONTRATO GUARDADO ──
+function viewContrato(rentalId){
+  var ct=(LS.get('sr_contratos')||[]).find(function(c){return c.rentalId===rentalId;});
+  if(!ct){toast('Contrato no encontrado');return;}
+  _viewingContrato=ct;
+  var d=new Date(ct.signedAt);
+  var dd=String(d.getDate()).padStart(2,'0'),mm=String(d.getMonth()+1).padStart(2,'0'),yyyy=d.getFullYear();
+  var hh=String(d.getHours()).padStart(2,'0'),mi=String(d.getMinutes()).padStart(2,'0');
+  document.getElementById('vct-consecutivo').textContent=ct.consecutivo?'· Renta #'+ct.consecutivo:'';
+  document.getElementById('vct-fecha').textContent=dd+' / '+mm+' / '+yyyy+' — '+hh+':'+mi;
+  document.getElementById('vct-nombre').textContent=ct.clientName||'—';
+  document.getElementById('vct-cedula').textContent=ct.clientDoc||'—';
+  document.getElementById('vct-celular').textContent=ct.clientPhone||'—';
+  document.getElementById('vct-qty').textContent=(ct.qty||1)+' unidad'+((ct.qty||1)>1?'es':'');
+  document.getElementById('vct-firma').textContent=ct.clientName||'—';
+  document.getElementById('vct-firma-fecha').textContent=dd+'/'+mm+'/'+yyyy;
+  document.getElementById('view-contrato-overlay').style.display='flex';
+}
+function closeViewContrato(){_viewingContrato=null;document.getElementById('view-contrato-overlay').style.display='none';}
+function printViewContrato(){
+  if(!_viewingContrato){toast('Sin contrato seleccionado');return;}
+  _openPrintWin(_buildContratoHTML(_viewingContrato));
+}
+
+// ── LISTA CONTRATOS TAB ──
+function switchTicketTab(tab,el){
+  document.querySelectorAll('#view-tickets .tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  document.getElementById('panel-tickets').style.display=tab==='tickets'?'block':'none';
+  document.getElementById('panel-contratos').style.display=tab==='contratos'?'block':'none';
+  if(tab==='contratos')renderContratosHistory();else renderTicketsHistory();
+}
+function renderContratosHistory(){
+  var q=((document.getElementById('contratos-search')||{}).value||'').toLowerCase().trim();
+  var contratos=LS.get('sr_contratos')||[];
+  var filtered=q?contratos.filter(function(c){
+    return(c.clientName||'').toLowerCase().includes(q)||(c.clientDoc||'').toLowerCase().includes(q)||(c.clientPhone||'').toLowerCase().includes(q);
+  }):contratos;
+  filtered=filtered.slice().sort(function(a,b){return(b.signedAt||0)-(a.signedAt||0);});
+  var el=document.getElementById('contratos-list');
+  if(!el)return;
+  if(!filtered.length){el.innerHTML='<div style="text-align:center;color:var(--muted);padding:3rem 1rem">'+(q?'Sin resultados para "'+q+'"':'Sin contratos registrados aún')+'</div>';return;}
+  el.innerHTML=filtered.map(function(ct){
+    var d=new Date(ct.signedAt);
+    var ds=d.toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'});
+    var ts=d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+    return'<div class="ticket-history-card" onclick="viewContrato(\''+ct.rentalId+'\')" style="border-left:3px solid rgba(0,200,80,.4)">'
+      +'<div class="th-header"><div>'
+      +'<div class="th-client">'+(ct.consecutivo?'#'+ct.consecutivo+' · ':'')+ct.clientName+'</div>'
+      +'<div class="th-meta">Doc: '+ct.clientDoc+(ct.clientPhone?' · 📞 '+ct.clientPhone:'')+'</div>'
+      +'<div class="th-meta">Stand: '+(ct.stand||'—')+' · '+(ct.qty||1)+' scooter'+((ct.qty||1)>1?'s':'')+'</div>'
+      +'</div><div style="text-align:right">'
+      +'<div style="font-size:.78rem;color:#00c850;font-weight:700">✔ FIRMADO</div>'
+      +'<div style="font-size:.72rem;color:var(--muted)">'+ds+'</div>'
+      +'<div style="font-size:.72rem;color:var(--muted)">'+ts+'</div>'
+      +'</div></div></div>';
+  }).join('');
 }
 
 function submitRental(){
@@ -2501,6 +2655,17 @@ function submitRental(){
   const consecutivo=allRentals.length+1;
   const r={id:'R'+Date.now(),consecutivo,clientName:name,clientDoc:doc,clientPhone:phone,qty,date,time,stand,status:'waiting',scooterDetails:[],createdAt:Date.now(),exitTime:null,returnTime:null,total:0,totalBefore:0,discount:0,isVIP,vipDiscount,createdBy:CU.username};
   const rs=allRentals;rs.push(r);LS.set('sr_rentals',rs);
+  // Guardar contrato firmado vinculado a esta renta
+  if(_pendingContrato){
+    _pendingContrato.rentalId=r.id;
+    _pendingContrato.consecutivo=consecutivo;
+    _pendingContrato.stand=stand;
+    _pendingContrato.qty=qty;
+    var allContratos=LS.get('sr_contratos')||[];
+    allContratos.push(_pendingContrato);
+    LS.set('sr_contratos',allContratos);
+    _pendingContrato=null;
+  }
   ae.className='alert alert-success';ae.textContent=`✔ Renta registrada para ${name} · ${qty} scooter${qty>1?'s':''} por escanear.`;ae.style.display='block';
   writeLog('create','📝 Renta #'+consecutivo+' creada: '+name+' · '+qty+'sc · '+stand,{consecutivo:consecutivo});
   resetRentalForm();toast('✔ Cliente registrado');refreshDashboard();
@@ -3177,15 +3342,19 @@ function renderTicketsHistory(){
   filtered.sort((a,b)=>(b.returnTime||0)-(a.returnTime||0));
   const el=document.getElementById('tickets-list');
   if(!filtered.length){el.innerHTML='<div style="text-align:center;color:var(--muted);padding:3rem 1rem">'+( q?'Sin resultados para "'+q+'"':'Sin tickets registrados aún')+'</div>';return;}
+  const savedContratos=LS.get('sr_contratos')||[];
   el.innerHTML=filtered.map(r=>{
     const vipBadge=r.isVIP?'<span class="vip-badge" style="font-size:.65rem"><span class="vip-star">⭐</span>VIP</span>':'';
     const disc=r.discount>0?`<span style="font-size:.75rem;color:#ffd700">-${fM(r.discount)} (${r.vipDiscount}% VIP)</span>`:'';
+    const hasCtrato=savedContratos.some(c=>c.rentalId===r.id);
+    const cBtn=hasCtrato?`<button onclick="event.stopPropagation();viewContrato('${r.id}')" style="margin-top:.3rem;background:rgba(0,200,80,.12);border:1px solid rgba(0,200,80,.4);border-radius:6px;padding:.2rem .55rem;color:#00c850;font-size:.72rem;cursor:pointer;font-family:var(--font)">📄 Contrato</button>`:'';
     return`<div class="ticket-history-card" onclick="showTicketFromId('${r.id}')">
       <div class="th-header">
         <div>
           <div class="th-client">#${r.consecutivo||'—'} · ${r.clientName} ${vipBadge}</div>
           <div class="th-meta">Doc: ${r.clientDoc}${r.clientPhone?' · 📞 '+r.clientPhone:''}</div>
           <div class="th-meta">${r.stand} · ${r.qty} scooter${r.qty>1?'s':''} · ${(r.scooterDetails&&r.scooterDetails.length)||0} escaneados</div>
+          ${cBtn}
         </div>
         <div style="text-align:right">
           <div class="th-total">${fM(r.total)}</div>
@@ -7972,9 +8141,60 @@ setDT();
       </div>
       <p id="contrato-scroll-hint" class="scroll-hint">↓ Desplázate para continuar</p>
     </div>
-    <div class="doc-modal-ftr">
+    <div id="contrato-stamp" class="contrato-stamp">FIRMADO ✓</div>
+    <div class="doc-modal-ftr" id="contrato-sign-ftr">
       <button class="btn btn-ghost" onclick="closeContratoModal()">Cerrar</button>
       <button class="btn" id="contrato-accept-btn" onclick="acceptContrato()" disabled>✍ Firmar y Aceptar</button>
+    </div>
+    <div class="doc-modal-ftr preview-ftr" id="contrato-preview-ftr">
+      <button class="btn btn-ghost" onclick="closeContratoModal()">Listo</button>
+      <button class="btn" onclick="printContratoActivo()" style="background:rgba(0,200,80,.15);border-color:rgba(0,200,80,.5);color:#00c850">🖨 Imprimir / PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL VER CONTRATO GUARDADO ═══ -->
+<div id="view-contrato-overlay" class="doc-overlay" style="display:none" onclick="if(event.target===this)closeViewContrato()">
+  <div class="doc-modal">
+    <div class="doc-modal-hdr">
+      <h3>📄 Contrato Firmado</h3>
+      <button onclick="closeViewContrato()" style="background:none;border:none;font-size:1.2rem;color:var(--muted);cursor:pointer;padding:.2rem .4rem;">✕</button>
+    </div>
+    <div class="doc-modal-body" id="vct-body">
+      <h2>CONTRATO DE ALQUILER DE SCOOTER</h2>
+      <p style="text-align:center;font-size:.78rem;color:var(--muted);margin-bottom:.9rem">NIT 1001394543-2 &nbsp;<span id="vct-consecutivo" style="color:var(--accent)"></span></p>
+      <p><strong>Fecha de firma:</strong>&nbsp;<span id="vct-fecha" class="contrato-field"></span></p>
+      <p style="margin-top:.85rem;line-height:1.7">El presente documento regula el alquiler temporal de scooter dentro de las instalaciones del centro comercial.</p>
+      <div class="contrato-section">
+        <strong>CONDICIONES:</strong>
+        <ol style="margin-top:.5rem">
+          <li>El arrendatario declara conocer y cumplir las normas de uso y seguridad, las cuales serán informadas por el arrendador y estarán disponibles en el staff.</li>
+          <li>El uso del scooter es bajo la exclusiva responsabilidad del arrendatario y/o acudiente (en caso de menores).</li>
+          <li>El arrendatario responde por cualquier daño, pérdida o perjuicio causado a terceros, bienes o el scooter.</li>
+          <li>Se deja en garantía un documento diferente a la cédula, el cual será devuelto al finalizar el servicio.</li>
+          <li>El arrendador no se hace responsable por accidentes derivados del uso indebido o negligente.</li>
+        </ol>
+      </div>
+      <div class="contrato-section">
+        <strong>DATOS DEL ARRENDATARIO:</strong>
+        <table style="margin-top:.55rem;width:100%;border-collapse:collapse">
+          <tr><td style="padding:.3rem 0;color:var(--muted);width:90px;vertical-align:top">Nombre:</td><td><span id="vct-nombre" class="contrato-field" style="min-width:200px"></span></td></tr>
+          <tr><td style="padding:.3rem 0;color:var(--muted);vertical-align:top">Cédula:</td><td><span id="vct-cedula" class="contrato-field" style="min-width:180px"></span></td></tr>
+          <tr><td style="padding:.3rem 0;color:var(--muted);vertical-align:top">Celular:</td><td><span id="vct-celular" class="contrato-field" style="min-width:180px"></span></td></tr>
+          <tr><td style="padding:.3rem 0;color:var(--muted);vertical-align:top">Scooter:</td><td><span id="vct-qty" class="contrato-field" style="min-width:120px"></span></td></tr>
+        </table>
+      </div>
+      <div class="firma-block">
+        <div class="firma-label">Firma del Arrendatario</div>
+        <div class="firma-name" id="vct-firma"></div>
+        <div class="firma-line"></div>
+        <div class="firma-label" id="vct-firma-fecha" style="margin-top:.5rem"></div>
+      </div>
+      <div class="contrato-stamp" style="display:block;position:static;transform:rotate(-8deg);margin:1.2rem auto;width:fit-content;border-color:rgba(0,200,80,.5);color:rgba(0,200,80,.6);font-size:1.8rem;padding:.3rem .9rem;">FIRMADO ✓</div>
+    </div>
+    <div class="doc-modal-ftr">
+      <button class="btn btn-ghost" onclick="closeViewContrato()">Cerrar</button>
+      <button class="btn" onclick="printViewContrato()" style="background:rgba(0,200,80,.15);border-color:rgba(0,200,80,.5);color:#00c850">🖨 Imprimir / PDF</button>
     </div>
   </div>
 </div>
