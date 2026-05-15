@@ -15,7 +15,7 @@
 <link rel="icon" href="logo.jpeg" type="image/jpeg">
 <link rel="apple-touch-icon" href="logo.jpeg">
 <link rel="manifest" id="pwa-manifest">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -635,6 +635,36 @@ tr:hover td{background:rgba(0,170,255,.03);}
   #vkb{left:50%;right:auto;width:720px;border-left:2px solid var(--accent);border-right:2px solid var(--accent);border-radius:18px 18px 0 0;transform:translate(-50%,100%);}
   #vkb.vkb-open{transform:translate(-50%,0);}
 }
+/* ═══ MODALES DOCUMENTOS LEGALES ═══ */
+.doc-overlay{position:fixed;inset:0;background:rgba(0,13,26,.88);backdrop-filter:blur(4px);z-index:8500;display:flex;align-items:flex-end;justify-content:center;padding:0;}
+.doc-modal{background:var(--bg2);border:1px solid var(--accent);border-radius:18px 18px 0 0;width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 -8px 40px rgba(0,170,255,.25);}
+.doc-modal-hdr{padding:1rem 1.25rem .75rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.doc-modal-hdr h3{font-size:1rem;font-weight:700;color:var(--accent);margin:0;}
+.doc-modal-body{flex:1;overflow-y:auto;padding:1rem 1.25rem;font-size:.88rem;line-height:1.7;color:var(--text);}
+.doc-modal-body h2{font-size:1rem;font-weight:700;color:var(--accent);text-align:center;margin-bottom:.75rem;}
+.doc-modal-body h3{font-size:.88rem;font-weight:700;color:var(--accent);margin:.75rem 0 .35rem;}
+.doc-modal-body ul{padding-left:1.25rem;}
+.doc-modal-body ul li{margin-bottom:.4rem;}
+.doc-modal-body ol{padding-left:1.25rem;}
+.doc-modal-body ol li{margin-bottom:.55rem;}
+.contrato-field{display:inline-block;min-width:160px;border-bottom:1px solid var(--accent);padding:0 .3rem;color:var(--accent);font-weight:600;}
+.contrato-section{background:rgba(0,170,255,.06);border-left:3px solid var(--accent);padding:.65rem .9rem;margin:.75rem 0;border-radius:0 8px 8px 0;}
+.firma-block{margin-top:1.5rem;border-top:1px solid var(--border);padding-top:1rem;text-align:center;}
+.firma-name{font-family:'Dancing Script','Brush Script MT',cursive;font-size:2rem;color:var(--accent);line-height:1.1;margin:.4rem 0;}
+.firma-line{border-top:2px solid var(--muted);width:220px;margin:.3rem auto 0;}
+.firma-label{font-size:.72rem;color:var(--muted);margin-top:.3rem;letter-spacing:1px;text-transform:uppercase;}
+.doc-modal-ftr{padding:.75rem 1.25rem calc(.75rem + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border);display:flex;gap:.6rem;flex-shrink:0;}
+.doc-modal-ftr .btn{flex:1;}
+.doc-modal-ftr .btn:disabled{opacity:.4;pointer-events:none;}
+.scroll-hint{text-align:center;font-size:.74rem;color:var(--muted);padding:.5rem;letter-spacing:.5px;}
+.doc-btn{width:100%;background:rgba(0,170,255,.08);border:1px solid rgba(0,170,255,.25);border-radius:10px;padding:.7rem 1rem;color:var(--text);font-family:var(--font);font-size:.88rem;font-weight:600;cursor:pointer;text-align:left;transition:background .15s;display:flex;align-items:center;gap:.55rem;}
+.doc-btn:hover,.doc-btn:active{background:rgba(0,170,255,.18);}
+.doc-btn-icon{font-size:1.1rem;flex-shrink:0;}
+.doc-btn-badge{margin-left:auto;font-size:.72rem;padding:.15rem .5rem;border-radius:6px;background:rgba(255,170,0,.15);color:var(--amber);}
+.doc-btn-badge.ok{background:rgba(0,200,80,.18);color:#00c850;}
+.check-row{display:flex;align-items:center;gap:.55rem;padding:.55rem .75rem;background:rgba(0,170,255,.05);border:1px solid var(--border);border-radius:10px;cursor:default;font-size:.84rem;}
+.check-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;}
+.check-row.accepted{border-color:rgba(0,200,80,.5);background:rgba(0,200,80,.07);color:#00c850;}
 </style>
 </head>
 <body>
@@ -928,6 +958,27 @@ tr:hover td{background:rgba(0,170,255,.03);}
             <select id="f-qty"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option></select>
           </div>
           <div class="field"><label>Stand</label><select id="f-stand"></select></div>
+          <!-- ── DOCUMENTOS LEGALES ── -->
+          <div style="display:flex;flex-direction:column;gap:.5rem;margin:.6rem 0 .4rem">
+            <button type="button" class="doc-btn" onclick="openTCModal()">
+              <span class="doc-btn-icon">📋</span><span>Términos y Condiciones</span>
+              <span class="doc-btn-badge" id="tc-badge">Pendiente</span>
+            </button>
+            <button type="button" class="doc-btn" onclick="openContratoModal()">
+              <span class="doc-btn-icon">📄</span><span>Contrato de Alquiler</span>
+              <span class="doc-btn-badge" id="contrato-badge">Pendiente</span>
+            </button>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:.75rem">
+            <label class="check-row" id="tc-check-row">
+              <input type="checkbox" id="tc-check" disabled onchange="syncCheckRow('tc')"/>
+              <span>He leído y acepto los Términos y Condiciones</span>
+            </label>
+            <label class="check-row" id="contrato-check-row">
+              <input type="checkbox" id="contrato-check" disabled onchange="syncCheckRow('contrato')"/>
+              <span>He leído y firmo el Contrato de Alquiler</span>
+            </label>
+          </div>
           <div class="form-actions">
             <button class="btn btn-ghost" onclick="resetRentalForm()">Limpiar</button>
             <button class="btn" onclick="submitRental()">Registrar →</button>
@@ -2329,13 +2380,112 @@ function deleteLastScooter(stand){
 }
 
 // ══ NUEVA RENTA ══
-function resetRentalForm(){document.getElementById('f-name').value='';document.getElementById('f-doc').value='';document.getElementById('f-phone').value='';document.getElementById('f-qty').value='1';var h=document.getElementById('f-client-hint');if(h)h.style.display='none';_autoFillClient=null;setDT();}
+function resetRentalForm(){
+  document.getElementById('f-name').value='';document.getElementById('f-doc').value='';document.getElementById('f-phone').value='';document.getElementById('f-qty').value='1';
+  var h=document.getElementById('f-client-hint');if(h)h.style.display='none';_autoFillClient=null;setDT();
+  var tc=document.getElementById('tc-check');if(tc){tc.checked=false;tc.disabled=true;}
+  var co=document.getElementById('contrato-check');if(co){co.checked=false;co.disabled=true;}
+  ['tc-check-row','contrato-check-row'].forEach(function(id){var r=document.getElementById(id);if(r)r.classList.remove('accepted');});
+  ['tc-badge','contrato-badge'].forEach(function(id){var b=document.getElementById(id);if(b){b.textContent='Pendiente';b.className='doc-btn-badge';}});
+}
+// ══ DOCUMENTOS LEGALES ══
+var _contratoTimer=null;
+
+function syncCheckRow(type){
+  var row=document.getElementById(type+'-check-row');
+  if(row)row.classList.toggle('accepted',document.getElementById(type+'-check').checked);
+}
+
+// ── TÉRMINOS Y CONDICIONES ──
+function openTCModal(){
+  var body=document.getElementById('tc-body');
+  var btn=document.getElementById('tc-accept-btn');
+  var hint=document.getElementById('tc-scroll-hint');
+  body.scrollTop=0;
+  btn.disabled=true;
+  if(hint)hint.style.display='block';
+  document.getElementById('tc-overlay').style.display='flex';
+  setTimeout(function(){onTCScroll(body);},120);
+}
+function onTCScroll(el){
+  if(el.scrollTop+el.clientHeight>=el.scrollHeight-28){
+    var hint=document.getElementById('tc-scroll-hint');
+    if(hint)hint.style.display='none';
+    document.getElementById('tc-accept-btn').disabled=false;
+  }
+}
+function acceptTC(){
+  var ck=document.getElementById('tc-check');
+  ck.disabled=false;ck.checked=true;syncCheckRow('tc');
+  var b=document.getElementById('tc-badge');
+  if(b){b.textContent='✔ Aceptado';b.className='doc-btn-badge ok';}
+  closeTCModal();
+}
+function closeTCModal(){document.getElementById('tc-overlay').style.display='none';}
+
+// ── CONTRATO ──
+function openContratoModal(){
+  var name=(document.getElementById('f-name').value.trim().toUpperCase())||'— Sin nombre —';
+  var doc=document.getElementById('f-doc').value.trim()||'—';
+  var phone=document.getElementById('f-phone').value.trim()||'—';
+  document.getElementById('contrato-nombre').textContent=name;
+  document.getElementById('contrato-cedula').textContent=doc;
+  document.getElementById('contrato-celular').textContent=phone;
+  document.getElementById('contrato-firma').textContent=name;
+  var body=document.getElementById('contrato-body');
+  var btn=document.getElementById('contrato-accept-btn');
+  var hint=document.getElementById('contrato-scroll-hint');
+  body.scrollTop=0;btn.disabled=true;
+  if(hint)hint.style.display='block';
+  _updateContratoFecha();
+  if(_contratoTimer)clearInterval(_contratoTimer);
+  _contratoTimer=setInterval(_updateContratoFecha,1000);
+  document.getElementById('contrato-overlay').style.display='flex';
+  setTimeout(function(){onContratoScroll(body);},120);
+}
+function _updateContratoFecha(){
+  var fv=document.getElementById('f-date').value;
+  var d=fv?new Date(fv+'T00:00:00'):new Date();
+  var now=new Date();
+  var dd=String(d.getDate()).padStart(2,'0');
+  var mm=String(d.getMonth()+1).padStart(2,'0');
+  var yyyy=d.getFullYear();
+  var hh=String(now.getHours()).padStart(2,'0');
+  var min=String(now.getMinutes()).padStart(2,'0');
+  var sec=String(now.getSeconds()).padStart(2,'0');
+  var ef=document.getElementById('contrato-fecha');
+  if(ef)ef.textContent=dd+' / '+mm+' / '+yyyy+'  –  '+hh+':'+min+':'+sec;
+  var fl=document.getElementById('contrato-firma-fecha');
+  if(fl)fl.textContent=dd+'/'+mm+'/'+yyyy;
+}
+function onContratoScroll(el){
+  if(el.scrollTop+el.clientHeight>=el.scrollHeight-28){
+    var hint=document.getElementById('contrato-scroll-hint');
+    if(hint)hint.style.display='none';
+    document.getElementById('contrato-accept-btn').disabled=false;
+  }
+}
+function acceptContrato(){
+  if(_contratoTimer){clearInterval(_contratoTimer);_contratoTimer=null;}
+  var ck=document.getElementById('contrato-check');
+  ck.disabled=false;ck.checked=true;syncCheckRow('contrato');
+  var b=document.getElementById('contrato-badge');
+  if(b){b.textContent='✔ Firmado';b.className='doc-btn-badge ok';}
+  closeContratoModal();
+}
+function closeContratoModal(){
+  if(_contratoTimer){clearInterval(_contratoTimer);_contratoTimer=null;}
+  document.getElementById('contrato-overlay').style.display='none';
+}
+
 function submitRental(){
   const name=document.getElementById('f-name').value.trim().toUpperCase();const doc=document.getElementById('f-doc').value.trim();
   const qty=parseInt(document.getElementById('f-qty').value);const date=document.getElementById('f-date').value;
   const time=document.getElementById('f-time').value;const stand=document.getElementById('f-stand').value;
   const phone=document.getElementById('f-phone').value.trim();
   const ae=document.getElementById('new-rental-alert');ae.style.display='none';
+  if(!document.getElementById('tc-check').checked){ae.className='alert alert-error';ae.textContent='Debes leer y aceptar los Términos y Condiciones.';ae.style.display='block';return;}
+  if(!document.getElementById('contrato-check').checked){ae.className='alert alert-error';ae.textContent='Debes leer y firmar el Contrato de Alquiler.';ae.style.display='block';return;}
   if(!name||!doc){ae.className='alert alert-error';ae.textContent='Completa nombre y documento.';ae.style.display='block';return;}
   // Find VIP status from clients registry
   const clientsDB=LS.get('sr_clients')||{};
@@ -7752,6 +7902,82 @@ setDT();
   else setTimeout(_init,0);
 })();
 </script>
+
+<!-- ═══ MODAL TÉRMINOS Y CONDICIONES ═══ -->
+<div id="tc-overlay" class="doc-overlay" style="display:none" onclick="if(event.target===this)closeTCModal()">
+  <div class="doc-modal">
+    <div class="doc-modal-hdr">
+      <h3>📋 Términos y Condiciones</h3>
+      <button onclick="closeTCModal()" style="background:none;border:none;font-size:1.2rem;color:var(--muted);cursor:pointer;padding:.2rem .4rem;">✕</button>
+    </div>
+    <div class="doc-modal-body" id="tc-body" onscroll="onTCScroll(this)">
+      <h2>TÉRMINOS Y CONDICIONES</h2>
+      <h3>Conductora · Conductor</h3>
+      <ul>
+        <li>No son carros chocones.</li>
+        <li>Respetar y cuidar las personas que van caminando.</li>
+        <li>Niños mayores de 7 años montan solos; menores de 7 años van con un adulto.</li>
+        <li>Prohibido ingresar a los locales; solo ingresan personas con movilidad reducida.</li>
+        <li>No montar 2 niños en el mismo scooter.</li>
+        <li>No montar 2 adultos en el mismo scooter.</li>
+        <li>Prohibido zona de comidas.</li>
+        <li>Si vas a usar el ascensor debes hacerlo en reversa y con ayuda de un adulto.</li>
+        <li>Mirar atrás cuando reversas.</li>
+      </ul>
+      <p id="tc-scroll-hint" class="scroll-hint">↓ Desplázate para continuar</p>
+    </div>
+    <div class="doc-modal-ftr">
+      <button class="btn btn-ghost" onclick="closeTCModal()">Cerrar</button>
+      <button class="btn" id="tc-accept-btn" onclick="acceptTC()" disabled>✔ Acepto los Términos</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL CONTRATO ═══ -->
+<div id="contrato-overlay" class="doc-overlay" style="display:none" onclick="if(event.target===this)closeContratoModal()">
+  <div class="doc-modal">
+    <div class="doc-modal-hdr">
+      <h3>📄 Contrato de Alquiler</h3>
+      <button onclick="closeContratoModal()" style="background:none;border:none;font-size:1.2rem;color:var(--muted);cursor:pointer;padding:.2rem .4rem;">✕</button>
+    </div>
+    <div class="doc-modal-body" id="contrato-body" onscroll="onContratoScroll(this)">
+      <h2>CONTRATO DE ALQUILER DE SCOOTER</h2>
+      <p style="text-align:center;font-size:.78rem;color:var(--muted);margin-bottom:.9rem">NIT 1001394543-2</p>
+      <p><strong>Fecha:</strong>&nbsp;<span id="contrato-fecha" class="contrato-field"></span></p>
+      <p style="margin-top:.85rem;line-height:1.7">El presente documento regula el alquiler temporal de scooter dentro de las instalaciones del centro comercial.</p>
+      <div class="contrato-section">
+        <strong>CONDICIONES:</strong>
+        <ol style="margin-top:.5rem">
+          <li>El arrendatario declara conocer y cumplir las normas de uso y seguridad, las cuales serán informadas por el arrendador y estarán disponibles en el staff.</li>
+          <li>El uso del scooter es bajo la exclusiva responsabilidad del arrendatario y/o acudiente (en caso de menores).</li>
+          <li>El arrendatario responde por cualquier daño, pérdida o perjuicio causado a terceros, bienes o el scooter.</li>
+          <li>Se deja en garantía un documento diferente a la cédula, el cual será devuelto al finalizar el servicio.</li>
+          <li>El arrendador no se hace responsable por accidentes derivados del uso indebido o negligente.</li>
+        </ol>
+      </div>
+      <div class="contrato-section">
+        <strong>DATOS DEL ARRENDATARIO:</strong>
+        <table style="margin-top:.55rem;width:100%;border-collapse:collapse">
+          <tr><td style="padding:.3rem 0;color:var(--muted);width:90px;vertical-align:top">Nombre:</td><td><span id="contrato-nombre" class="contrato-field" style="min-width:200px"></span></td></tr>
+          <tr><td style="padding:.3rem 0;color:var(--muted);vertical-align:top">Cédula:</td><td><span id="contrato-cedula" class="contrato-field" style="min-width:180px"></span></td></tr>
+          <tr><td style="padding:.3rem 0;color:var(--muted);vertical-align:top">Celular:</td><td><span id="contrato-celular" class="contrato-field" style="min-width:180px"></span></td></tr>
+          <tr><td style="padding:.3rem 0;color:var(--muted);vertical-align:top">Scooter:</td><td><span class="contrato-field" style="min-width:180px;color:var(--muted);font-weight:400;font-style:italic">Se asigna al escanear</span></td></tr>
+        </table>
+      </div>
+      <div class="firma-block">
+        <div class="firma-label">Firma del Arrendatario</div>
+        <div class="firma-name" id="contrato-firma"></div>
+        <div class="firma-line"></div>
+        <div class="firma-label" id="contrato-firma-fecha" style="margin-top:.5rem"></div>
+      </div>
+      <p id="contrato-scroll-hint" class="scroll-hint">↓ Desplázate para continuar</p>
+    </div>
+    <div class="doc-modal-ftr">
+      <button class="btn btn-ghost" onclick="closeContratoModal()">Cerrar</button>
+      <button class="btn" id="contrato-accept-btn" onclick="acceptContrato()" disabled>✍ Firmar y Aceptar</button>
+    </div>
+  </div>
+</div>
 
 <!-- ═══ TECLADO VIRTUAL ═══ -->
 <div id="vkb" role="toolbar" aria-label="Teclado virtual">
