@@ -963,22 +963,22 @@ tr:hover td{background:rgba(0,170,255,.03);}
           <!-- ── DOCUMENTOS LEGALES ── -->
           <div style="display:flex;flex-direction:column;gap:.5rem;margin:.6rem 0 .4rem">
             <button type="button" class="doc-btn" onclick="openTCModal()">
-              <span class="doc-btn-icon">📋</span><span>Términos y Condiciones</span>
+              <span class="doc-btn-icon">📋</span><span>Política de Tratamiento de Datos</span>
               <span class="doc-btn-badge" id="tc-badge">Pendiente</span>
             </button>
             <button type="button" class="doc-btn" onclick="openContratoModal()">
-              <span class="doc-btn-icon">📄</span><span>Contrato de Alquiler</span>
+              <span class="doc-btn-icon">📄</span><span>Contrato de Arrendamiento</span>
               <span class="doc-btn-badge" id="contrato-badge">Pendiente</span>
             </button>
           </div>
           <div style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:.75rem">
             <label class="check-row" id="tc-check-row">
               <input type="checkbox" id="tc-check" disabled onchange="syncCheckRow('tc')"/>
-              <span>He leído y acepto los Términos y Condiciones</span>
+              <span>He leído y acepto la Política de Tratamiento de Datos</span>
             </label>
             <label class="check-row" id="contrato-check-row">
               <input type="checkbox" id="contrato-check" disabled onchange="syncCheckRow('contrato')"/>
-              <span>He leído y firmo el Contrato de Alquiler</span>
+              <span>He leído y firmo el Contrato de Arrendamiento</span>
             </label>
           </div>
           <div class="form-actions">
@@ -2584,16 +2584,19 @@ function _buildContratoHTML(ct){
     +'.stamp{display:inline-block;border:4px solid #00a830;border-radius:8px;padding:4px 14px;color:#00a830;font-weight:900;font-size:13pt;letter-spacing:4px;transform:rotate(-8deg);margin-top:14px}'
     +'</style></head><body>'
     +'<div class="hdr">'+logoHtml
-    +'<h1>CONTRATO DE ALQUILER DE SCOOTER<span>NIT 1001394543-2'+(ct.consecutivo?' · Renta #'+ct.consecutivo:'')+'</span></h1>'
+    +'<h1>CONTRATO DE ALQUILER<span>Scooter SVS · LUIS ALFREDO VALDES · NIT 70630689-1'+(ct.consecutivo?' · Renta #'+ct.consecutivo:'')+'</span></h1>'
     +'</div>'
     +'<p><strong>Fecha:</strong> '+dd+' / '+mm+' / '+yyyy+' &nbsp;–&nbsp; '+hh+':'+mi+'</p>'
-    +'<p style="margin:10px 0;line-height:1.6">El presente documento regula el alquiler temporal de scooter dentro de las instalaciones del centro comercial.</p>'
-    +'<div class="sec"><strong>CONDICIONES:</strong><ol>'
-    +'<li>El arrendatario declara conocer y cumplir las normas de uso y seguridad, las cuales serán informadas por el arrendador y estarán disponibles en el staff.</li>'
-    +'<li>El uso del scooter es bajo la exclusiva responsabilidad del arrendatario y/o acudiente (en caso de menores).</li>'
-    +'<li>El arrendatario responde por cualquier daño, pérdida o perjuicio causado a terceros, bienes o el scooter.</li>'
-    +'<li>Se deja en garantía un documento diferente a la cédula, el cual será devuelto al finalizar el servicio.</li>'
-    +'<li>El arrendador no se hace responsable por accidentes derivados del uso indebido o negligente.</li>'
+    +'<div class="sec"><strong>OBJETO DEL CONTRATO:</strong>'
+    +'<p style="margin-top:5px;line-height:1.6">Por medio del presente instrumento, el <b>ARRENDADOR</b> entrega al <b>ARRENDATARIO</b> el vehículo tipo scooter motorizada identificado en el registro digital vinculado a esta transacción. El <b>ARRENDATARIO</b> declara haber inspeccionado el equipo y recibirlo en óptimas condiciones. El uso del bien es estrictamente recreativo. El <b>ARRENDATARIO</b> se obliga a cumplir las normas de seguridad y a devolver el equipo en el mismo estado en que le fue entregado.</p></div>'
+    +'<div class="sec"><strong>CONSIDERACIONES Y CLÁUSULAS PRINCIPALES:</strong><ol>'
+    +'<li>El <b>ARRENDATARIO TITULAR</b> debe ser mayor de 18 años y se hará responsable del equipo alquilado.</li>'
+    +'<li>Cualquier reclamación derivada de daños materiales o físicos causados a terceros o al equipo será <b>ÚNICA Y EXCLUSIVA RESPONSABILIDAD DEL ARRENDATARIO</b>, obligándose a mantener completamente indemne a SCOOTER SVS.</li>'
+    +'<li>Si el usuario final es un menor de edad, el ARRENDATARIO TITULAR declara poseer su representación legal. En caso contrario, se constituye como <b>DEUDOR SOLIDARIO Y GARANTE</b> de todas las obligaciones derivadas de este contrato.</li>'
+    +'<li>El presente contrato validado mediante OTP (Firma Electrónica) presta <b>MÉRITO EJECUTIVO</b> conforme al Artículo 422 del Código General del Proceso.</li>'
+    +'<li>El uso es exclusivamente recreativo en las áreas del Parque Comercial Florida Etapa 2 (límite 4 km/h, máximo 110 kg). Se prohíbe el uso bajo efectos de alcohol o sustancias psicoactivas y el choque intencional con otros usuarios.</li>'
+    +'<li><b>SCOOTER SVS NO SE HARÁ CARGO NI RESPONSABLE</b> de accidentes, golpes, heridas o daños ocasionados por el usuario a sí mismo o a terceros derivado de la operación del equipo.</li>'
+    +'<li>Las obligaciones dinerarias derivadas de este contrato (excedentes de tiempo, multas o daños) son claras, expresas y exigibles, y se cobrarán mediante el procedimiento ejecutivo correspondiente.</li>'
     +'</ol></div>'
     +'<div class="sec"><strong>DATOS DEL ARRENDATARIO:</strong><table>'
     +'<tr><td>Nombre:</td><td>'+(ct.clientName||'—')+'</td></tr>'
@@ -2688,7 +2691,7 @@ function submitRental(){
   const time=document.getElementById('f-time').value;const stand=document.getElementById('f-stand').value;
   const phone=document.getElementById('f-phone').value.trim();
   const ae=document.getElementById('new-rental-alert');ae.style.display='none';
-  if(!document.getElementById('tc-check').checked){ae.className='alert alert-error';ae.textContent='Debes leer y aceptar los Términos y Condiciones.';ae.style.display='block';return;}
+  if(!document.getElementById('tc-check').checked){ae.className='alert alert-error';ae.textContent='Debes leer y aceptar la Política de Tratamiento de Datos.';ae.style.display='block';return;}
   if(!document.getElementById('contrato-check').checked){ae.className='alert alert-error';ae.textContent='Debes leer y firmar el Contrato de Alquiler.';ae.style.display='block';return;}
   if(!name||!doc){ae.className='alert alert-error';ae.textContent='Completa nombre y documento.';ae.style.display='block';return;}
   // Find VIP status from clients registry
@@ -8217,28 +8220,110 @@ setDT();
 <div id="tc-overlay" class="doc-overlay" style="display:none" onclick="if(event.target===this)closeTCModal()">
   <div class="doc-modal">
     <div class="doc-modal-hdr">
-      <h3>📋 Términos y Condiciones</h3>
+      <h3>📋 Política de Tratamiento de Datos</h3>
       <button onclick="closeTCModal()" style="background:none;border:none;font-size:1.2rem;color:var(--muted);cursor:pointer;padding:.2rem .4rem;">✕</button>
     </div>
     <div class="doc-modal-body" id="tc-body" onscroll="onTCScroll(this)">
-      <h2>TÉRMINOS Y CONDICIONES</h2>
-      <h3>Conductora · Conductor</h3>
-      <ul>
-        <li>No son carros chocones.</li>
-        <li>Respetar y cuidar las personas que van caminando.</li>
-        <li>Niños mayores de 7 años montan solos; menores de 7 años van con un adulto.</li>
-        <li>Prohibido ingresar a los locales; solo ingresan personas con movilidad reducida.</li>
-        <li>No montar 2 niños en el mismo scooter.</li>
-        <li>No montar 2 adultos en el mismo scooter.</li>
-        <li>Prohibido zona de comidas.</li>
-        <li>Si vas a usar el ascensor debes hacerlo en reversa y con ayuda de un adulto.</li>
-        <li>Mirar atrás cuando reversas.</li>
-      </ul>
+      <h2>POLÍTICA DE PRIVACIDAD, AUTORIZACIÓN DE USO DE IMAGEN Y TRATAMIENTO DE DATOS PERSONALES</h2>
+      <p style="text-align:center;color:var(--accent);font-weight:700;font-size:.85rem;margin:.2rem 0">SCOOTER SVS · LUIS ALFREDO VALDES VÉLEZ</p>
+      <p style="text-align:center;font-size:.8rem;color:var(--muted);margin-bottom:.8rem">NIT NRO. 70630689-1</p>
+      <p style="line-height:1.7;margin-bottom:.8rem">De acuerdo con la Constitución Política de Colombia en sus artículos 15 y 20; los conceptos y criterios de la Ley Estatutaria 1581 de 2012 y el Decreto Reglamentario 1377 de 2013, así como las Sentencias C-1011 de 2008 y C-748 de 2011 de la Corte Constitucional, <strong>SCOOTER SVS</strong> (en adelante, el "Responsable"), establece la presente Política de Tratamiento de Datos Personales aplicable a todos los titulares de información (clientes, usuarios, menores de edad representados, proveedores y empleados) cuyos datos sean objeto de tratamiento.</p>
+      <div class="contrato-section">
+        <strong>DEFINICIONES</strong>
+        <ol type="i" style="margin-top:.5rem">
+          <li><u>Aviso de privacidad</u>: Comunicación verbal o escrita generada por el responsable, dirigida al Titular para el Tratamiento de sus datos personales, mediante la cual se le informa acerca de la existencia de las políticas de Tratamiento de información que le serán aplicables, la forma de acceder a las mismas y las finalidades del Tratamiento que se pretende dar a los datos personales.</li>
+          <li><u>Autorización</u>: Consentimiento previo, expreso e informado del Titular para llevar a cabo el Tratamiento de Datos Personales.</li>
+          <li><u>Base de Datos</u>: Conjunto organizado de Datos Personales que sea objeto de Tratamiento, los cuales pueden ser almacenados y/o procesados en servidores ubicados en centros de cómputo o papelería física, ya sean propios o contratados con terceros, localizados en el territorio nacional o en distintos países.</li>
+          <li><u>Dato Personal</u>: Cualquier información vinculada o que pueda asociarse a una o varias personas naturales determinadas o determinables.</li>
+          <li><u>Dato público</u>: Es el dato que no sea semiprivado, privado o sensible. Son considerados datos públicos, entre otros, los datos relativos al estado civil de las personas, a su profesión u oficio y a su calidad de comerciante o de servidor público.</li>
+          <li><u>Datos Sensibles</u>: Aquellos que afectan la intimidad del Titular o cuyo uso indebido puede generar su discriminación, tales como los que revelen el origen racial o étnico, la orientación política, las convicciones religiosas o filosóficas, la pertenencia a sindicatos, organizaciones sociales, de derechos humanos, datos relativos a la salud, a la vida sexual y datos biométricos.</li>
+          <li><u>Encargado del Tratamiento</u>: Persona natural o jurídica, pública o privada, que por sí misma o en asocio con otros, realice el Tratamiento de Datos Personales por cuenta del responsable del Tratamiento de Datos Personales.</li>
+          <li><u>Responsable del Tratamiento</u>: Para efectos de la presente Política, el responsable será <strong>LUIS ALFREDO VALDES VELEZ (SCOOTER SVS)</strong>.</li>
+          <li><u>Titular</u>: Persona natural cuyos datos personales sean objeto de Tratamiento, sea que ostenten la calidad de clientes, empleados, proveedores u otra clase de denominación frente a la empresa.</li>
+          <li><u>Transferencia</u>: La transferencia de datos tiene lugar cuando el responsable y/o encargado del tratamiento de datos personales, ubicado en Colombia, envía la información o los datos personales a un receptor, que a su vez es responsable del tratamiento y se encuentra dentro o fuera del país.</li>
+          <li><u>Transmisión</u>: Tratamiento de datos personales que implica la comunicación de los mismos dentro o fuera del territorio de la República de Colombia cuando tenga por objeto la realización de un tratamiento por el encargado por cuenta de un único responsable.</li>
+          <li><u>Tratamiento</u>: Cualquier operación o conjunto de operaciones sobre Datos Personales, tales como la recolección, almacenamiento, uso, circulación o supresión.</li>
+        </ol>
+      </div>
+      <div class="contrato-section">
+        <strong>PRINCIPIOS</strong>
+        <ul style="margin-top:.5rem">
+          <li><u>Principio De Finalidad</u>: El tratamiento debe obedecer a una finalidad legítima de acuerdo con la Constitución y la Ley, la cual debe ser informada al titular.</li>
+          <li><u>Principio De Libertad</u>: El tratamiento solo puede ejercerse con el consentimiento previo, expreso, e informado del titular. Los datos personales no podrán ser obtenidos o divulgados sin previa autorización, o en ausencia de mandato legal o judicial que releve el consentimiento.</li>
+          <li><u>Principio De Veracidad O Calidad</u>: La información sujeta a tratamiento debe ser veraz, completa, exacta, actualizada, comprobable y comprensible. Se prohíbe el tratamiento de datos parciales, incompletos, fraccionados o que induzcan a error.</li>
+          <li><u>Principio De Transparencia</u>: En el tratamiento debe garantizarse el derecho del titular a obtener del responsable del tratamiento, en cualquier momento y sin restricciones, información acerca de la existencia de datos que le conciernan.</li>
+          <li><u>Principio De Acceso Y Circulación Restringida</u>: El tratamiento sólo podrá hacerse por personas autorizadas por el titular y/o por las personas previstas por la ley.</li>
+          <li><u>Principio De Seguridad</u>: La información se deberá manejar con las medidas técnicas, humanas y administrativas necesarias para otorgar seguridad a los registros evitando su adulteración, pérdida, consulta, uso o acceso no autorizado o fraudulento.</li>
+          <li><u>Principio De Confidencialidad</u>: <strong>LUIS ALFREDO VALDES VELEZ (SCOOTER SVS)</strong> está obligado a garantizar la reserva de la información, inclusive después de finalizada su relación con alguna de las labores que comprende el tratamiento.</li>
+        </ul>
+      </div>
+      <div class="contrato-section">
+        <strong>FINALIDAD DEL TRATAMIENTO DE DATOS PERSONALES</strong>
+        <ol style="margin-top:.5rem">
+          <li><strong>Ejecución Contractual:</strong> Efectuar las gestiones pertinentes para el desarrollo del objeto comercial, específicamente la formalización del Contrato de Alquiler de equipos recreativos mediante firma electrónica (OTP).</li>
+          <li><strong>Gestión de Riesgos y Cobro:</strong> Utilizar la información como medio de prueba vinculante para la exigibilidad de obligaciones dinerarias derivadas de daños a la infraestructura, a los equipos o a terceros, así como para la gestión del cobro judicial o extrajudicial.</li>
+          <li><strong>Reporte a Centrales de Riesgo:</strong> Compartir información con terceros para el reporte y consulta a centrales de riesgo crediticio legalmente constituidas en Colombia en caso de incumplimiento de las obligaciones contractuales y de responsabilidad civil.</li>
+          <li><strong>Fines Publicitarios y Comerciales:</strong> Realizar invitaciones a eventos, ofrecer nuevos servicios, efectuar encuestas de satisfacción y gestionar peticiones, quejas y reclamos. Contactar al Titular a través de medios electrónicos, SMS o chat.</li>
+        </ol>
+      </div>
+      <div class="contrato-section">
+        <strong>AUTORIZACIÓN PARA REALIZAR EL TRATAMIENTO DE DATOS PERSONALES Y USO DE IMAGEN</strong>
+        <p style="margin-top:.5rem;line-height:1.7">La recolección, almacenamiento, uso, circulación o supresión de datos personales por parte de <strong>LUIS ALFREDO VALDES VELEZ (SCOOTER SVS)</strong>, requiere del consentimiento libre, previo, expreso e informado del titular de los mismos.</p>
+        <p style="margin-top:.5rem;line-height:1.7">El Titular autoriza a <strong>LUIS ALFREDO VALDES VELEZ (SCOOTER SVS)</strong>, para que haga uso y tratamiento de sus derechos de imagen (fotografía y video), respecto de la utilización de los equipos recreativos. Estas imágenes podrán ser utilizadas con fines informativos, de seguridad y publicitarios en la página web y redes sociales del responsable. SCOOTER SVS se compromete a omitir datos de ubicación y referencia geográfica exacta, y a excluir elementos que vulneren el derecho a la intimidad.</p>
+        <p style="margin-top:.5rem;line-height:1.7"><u>Forma y Mecanismos Para Otorgar La Autorización</u>: La autorización puede ser otorgada por el titular (i) por escrito, (ii) de forma oral, (iii) de forma electrónica o (iv) mediante conductas inequívocas del titular que permitan concluir de forma razonable que otorgó la autorización. <em>En ningún caso el silencio podrá asimilarse a una conducta inequívoca.</em></p>
+      </div>
+      <div class="contrato-section">
+        <strong>DERECHOS DEL TITULAR</strong>
+        <ol style="margin-top:.5rem">
+          <li>Conocer, actualizar y rectificar sus datos personales frente a SCOOTER SVS.</li>
+          <li>Consultar de forma gratuita sus datos personales.</li>
+          <li>Solicitar prueba de la autorización otorgada.</li>
+          <li>Revocar la autorización y/o solicitar la supresión del dato, <strong>salvo cuando el Titular tenga un deber legal o contractual de permanecer en la base de datos</strong> (ej. deudas pendientes por daños).</li>
+          <li>Presentar ante la Superintendencia de Industria y Comercio quejas por infracciones a lo dispuesto en la ley 1581 de 2012.</li>
+        </ol>
+      </div>
+      <div class="contrato-section">
+        <strong>DEBERES DEL TITULAR</strong>
+        <p style="margin-top:.5rem;line-height:1.7">El Titular de los Datos Personales tendrá el deber de mantener actualizada su información y garantizar, en todo momento, la veracidad de la misma. <strong>LUIS ALFREDO VALDES VELEZ (SCOOTER SVS)</strong> no se hará responsable, en ningún caso, por cualquier tipo de responsabilidad derivada por la inexactitud de la información.</p>
+      </div>
+      <div class="contrato-section">
+        <strong>MEDIDAS DE SEGURIDAD PARA EL TRATAMIENTO DE LOS DATOS PERSONALES</strong>
+        <p style="margin-top:.5rem;line-height:1.7"><strong>LUIS ALFREDO VALDES VELEZ (SCOOTER SVS)</strong> adoptará las técnicas de seguridad que sean necesarias para otorgar seguridad a los registros evitando su adulteración, pérdida, consulta, uso o acceso no autorizado o fraudulento. Sin embargo, no responderá en caso de presentarse una violación a sus sistemas de seguridad cuando medie fuerza mayor o caso fortuito.</p>
+      </div>
+      <div class="contrato-section">
+        <strong>PROCEDIMIENTO DE ACCESO, CONSULTA Y RECLAMACIÓN</strong>
+        <p style="margin-top:.5rem;line-height:1.7">El área de Administración y Servicio al Cliente es la responsable de la atención de peticiones, consultas y reclamos. Canales habilitados: Correo electrónico (<strong>scooter.admon@gmail.com</strong>) y la dirección física del establecimiento comercial. Tel: <strong>3128773276</strong>.</p>
+        <ul style="margin-top:.5rem">
+          <li><strong>Consultas:</strong> Serán atendidas en un término máximo de diez (10) días hábiles contados a partir de la fecha de su recibo. Cuando no fuere posible atender la consulta dentro de dicho término, se informará al interesado señalando la fecha de respuesta, la cual no podrá superar los cinco (5) días hábiles siguientes al vencimiento del primer plazo.</li>
+          <li><strong>Reclamos (Corrección, actualización o supresión):</strong> El término máximo para atenderlo será de quince (15) días hábiles. En caso de demora justificada, se informará y se responderá en un plazo no mayor a ocho (8) días hábiles adicionales.</li>
+        </ul>
+      </div>
+      <div class="contrato-section">
+        <strong>SUPRESIÓN DE LOS DATOS Y EXCEPCIONES</strong>
+        <p style="margin-top:.5rem;line-height:1.7">El titular tiene el derecho, en todo momento, a solicitar a <strong>LUIS ALFREDO VALDES VELEZ (SCOOTER SVS)</strong> la supresión (eliminación) de sus datos personales cuando:</p>
+        <ol type="a" style="margin-top:.4rem">
+          <li>Considere que los mismos no están siendo tratados conforme a los principios, deberes y obligaciones previstas en la Ley 1581 de 2012.</li>
+          <li>Hayan dejado de ser necesarios o pertinentes para la finalidad para la cual fueron recabados.</li>
+          <li>Se haya superado el periodo necesario para el cumplimiento de los fines para los que fueron recolectados.</li>
+        </ol>
+        <p style="margin-top:.5rem;line-height:1.7"><strong>SCOOTER SVS</strong> no procederá con la supresión de la información y la revocatoria de la autorización cuando el Titular tenga un deber legal o contractual de permanecer en la base de datos.</p>
+      </div>
+      <div class="contrato-section">
+        <strong>AUTORIZACIÓN EXPRESA</strong>
+        <p style="margin-top:.5rem;line-height:1.7">Autorizo de manera expresa, amplia y suficiente a <strong>LUIS ALFREDO VALDES (SCOOTER SVS)</strong> para recolectar, almacenar, usar y tratar mis datos personales con el fin de gestionar la relación contractual derivada del alquiler de equipos recreativos. Asimismo, autorizo expresamente a <strong>LUIS ALFREDO VALDES (SCOOTER SVS)</strong> para utilizar mi información como medio de prueba vinculante y para adelantar los trámites de cobro extrajudicial o judicial que se llegasen a requerir por concepto de excedentes de tiempo, penalidades, o indemnización por daños materiales o físicos causados al equipo, a terceros o a las instalaciones del Parque Comercial Florida. De igual manera, autorizo el reporte de mi información a centrales de riesgo crediticio en caso de incumplimiento de mis obligaciones económicas y de responsabilidad civil.</p>
+        <p style="margin-top:.5rem;line-height:1.7">Declaro que he sido informado de manera clara y suficiente sobre los fines y objetivos del tratamiento de mis datos personales por parte de <strong>LUIS ALFREDO VALDES (SCOOTER SVS)</strong>, así como de los derechos que me asisten como titular de la información, incluyendo la posibilidad de revocar esta autorización, siempre y cuando no exista un deber legal o contractual vigente que obligue a su retención.</p>
+        <p style="margin-top:.5rem;line-height:1.7">Al dar clic en "Acepto" y/o ingresar el código de seguridad (OTP) en el formulario virtual, se entiende como autorización expresa y firma electrónica para el tratamiento de los datos personales en los términos aquí descritos. Esta autorización permanecerá vigente mientras se mantenga la relación con <strong>LUIS ALFREDO VALDES (SCOOTER SVS)</strong> o hasta que revoque expresamente la misma y se encuentren a paz y salvo todas las obligaciones derivadas del servicio.</p>
+      </div>
+      <div class="contrato-section">
+        <strong>VIGENCIA DE LA POLÍTICA</strong>
+        <p style="margin-top:.5rem;line-height:1.7">Esta Política entrará en vigencia a partir de su publicación. Tanto la Política como las Bases de Datos contentivas de la información suministrada podrá permanecer vigente hasta por el término de duración del establecimiento comercial <strong>LUIS ALFREDO VALDES VELEZ (SCOOTER SVS)</strong>. Sin perjuicio de que esta política pueda ser modificada en cualquier momento y de forma unilateral por parte de <strong>LUIS ALFREDO VALDES VELEZ (SCOOTER SVS)</strong>.</p>
+        <p style="margin-top:.6rem"><strong>Cordialmente,<br>LUIS ALFREDO VALDES VELEZ (SCOOTER SVS).<br>NIT Nro. 70630689-1</strong></p>
+      </div>
       <p id="tc-scroll-hint" class="scroll-hint">↓ Desplázate para continuar</p>
     </div>
     <div class="doc-modal-ftr">
       <button class="btn btn-ghost" onclick="closeTCModal()">Cerrar</button>
-      <button class="btn" id="tc-accept-btn" onclick="acceptTC()" disabled>✔ Acepto los Términos</button>
+      <button class="btn" id="tc-accept-btn" onclick="acceptTC()" disabled>✔ Acepto la Política</button>
     </div>
   </div>
 </div>
@@ -8247,23 +8332,36 @@ setDT();
 <div id="contrato-overlay" class="doc-overlay" style="display:none" onclick="if(event.target===this)closeContratoModal()">
   <div class="doc-modal">
     <div class="doc-modal-hdr">
-      <h3>📄 Contrato de Alquiler</h3>
+      <h3>📄 Contrato de Arrendamiento</h3>
       <button onclick="closeContratoModal()" style="background:none;border:none;font-size:1.2rem;color:var(--muted);cursor:pointer;padding:.2rem .4rem;">✕</button>
     </div>
     <div class="doc-modal-body" id="contrato-body" onscroll="onContratoScroll(this)">
-      <h2>CONTRATO DE ALQUILER DE SCOOTER</h2>
-      <p style="text-align:center;font-size:.78rem;color:var(--muted);margin-bottom:.9rem">NIT 1001394543-2</p>
+      <h2>CONTRATO DE ALQUILER</h2>
+      <p style="text-align:center;font-size:.82rem;color:var(--accent);font-weight:600;margin:.2rem 0">COMPAÑÍA PRESTADORA DEL SERVICIO</p>
+      <p style="text-align:center;font-size:.8rem;color:var(--muted);margin-bottom:.6rem">Scooter SVS · LUIS ALFREDO VALDES · NIT. 70630689-1</p>
       <p><strong>Fecha:</strong>&nbsp;<span id="contrato-fecha" class="contrato-field"></span></p>
-      <p style="margin-top:.85rem;line-height:1.7">El presente documento regula el alquiler temporal de scooter dentro de las instalaciones del centro comercial.</p>
       <div class="contrato-section">
-        <strong>CONDICIONES:</strong>
+        <strong>OBJETO DEL CONTRATO</strong>
+        <p style="margin-top:.5rem;line-height:1.7">Por medio del presente instrumento, el <strong>ARRENDADOR</strong> entrega al <strong>ARRENDATARIO</strong>, y este recibe en calidad de alquiler, el vehículo tipo scooter motorizada identificado plenamente en el registro digital vinculado a esta transacción. El <strong>ARRENDATARIO</strong> declara expresamente que, previo a la validación de este contrato, <strong>ha inspeccionado el equipo y verificado su estado</strong>, recibiéndolo a su entera satisfacción en óptimas condiciones mecánicas, de seguridad y funcionamiento. El uso del bien es estrictamente recreativo y se limitará al plazo de tiempo y precio pactados. El <strong>ARRENDATARIO</strong> se obliga de manera irrevocable a cumplir las normas de seguridad y a devolver el equipo en el mismo estado de conservación y funcionamiento en que le fue entregado.</p>
+      </div>
+      <div class="contrato-section">
+        <strong>CONSIDERACIONES</strong>
         <ol style="margin-top:.5rem">
-          <li>El arrendatario declara conocer y cumplir las normas de uso y seguridad, las cuales serán informadas por el arrendador y estarán disponibles en el staff.</li>
-          <li>El uso del scooter es bajo la exclusiva responsabilidad del arrendatario y/o acudiente (en caso de menores).</li>
-          <li>El arrendatario responde por cualquier daño, pérdida o perjuicio causado a terceros, bienes o el scooter.</li>
-          <li>Se deja en garantía un documento diferente a la cédula, el cual será devuelto al finalizar el servicio.</li>
-          <li>El arrendador no se hace responsable por accidentes derivados del uso indebido o negligente.</li>
+          <li>El <strong>ARRENDATARIO TITULAR</strong> debe leer y aceptar los presentes términos y condiciones de uso, ser mayor de 18 años y se hará responsable del equipo alquilado.</li>
+          <li>El <strong>ARRENDATARIO</strong> comprende y acepta que el uso de la scooter motorizada en zonas de tránsito peatonal conlleva riesgos inherentes de colisión, caídas o accidentes. Cualquier reclamación, demanda, sanción o indemnización derivada de daños materiales o físicos causados a terceros (incluyendo transeúntes, mascotas, locales o mobiliario del Parque Comercial), así como a sí mismo o al menor usuario, será <strong>ÚNICA Y EXCLUSIVA RESPONSABILIDAD DEL ARRENDATARIO</strong>, obligándose a responder financieramente y a mantener completamente indemne y libre de toda reclamación a SCOOTER SVS.</li>
+          <li>El ARRENDATARIO asume la responsabilidad total por el uso del equipo. Si el usuario final es un menor de edad, el <strong>ARRENDATARIO TITULAR</strong> declara poseer su representación legal. En caso de que el ARRENDATARIO no sea el representante legal del menor, este se constituye de manera irrevocable como <strong>DEUDOR SOLIDARIO Y GARANTE</strong> de todas las obligaciones económicas y civiles derivadas de este contrato.</li>
+          <li>Las partes acuerdan que el presente contrato, validado mediante el código OTP (Firma Electrónica), junto con el registro de daños o la liquidación de perjuicios que realice SCOOTER SVS, presta <strong>MÉRITO EJECUTIVO</strong> de conformidad con el Artículo 422 del Código General del Proceso, por tratarse de una obligación clara, expresa y exigible de pagar una suma de dinero líquida o liquidable.</li>
+          <li>Por lo cual el <strong>ARRENDATARIO TITULAR</strong> manifiesta estar de acuerdo con el contenido y la motivación del contrato; a su vez, manifiesta haber leído y comprendido las "Normas de Seguridad" exhibidas en el stand, las cuales acepta como parte integral de este contrato.</li>
         </ol>
+      </div>
+      <div class="contrato-section">
+        <strong>CLÁUSULAS</strong>
+        <p style="margin-top:.5rem;line-height:1.7"><strong>PRIMERA. DESTINACIÓN Y USO EXCLUSIVO DEL BIEN.</strong> El equipo alquilado solo podrá ser operado por la persona designada como USUARIO en el registro digital, o por el menor autorizado por el USUARIO. El uso es única y exclusivamente recreativo e interior, restringido a las áreas comunes permitidas del Parque Comercial Florida Etapa 2.</p>
+        <p style="margin-top:.5rem;line-height:1.7"><strong>SEGUNDA. OBLIGACIONES DEL ARRENDADOR.</strong> En cumplimiento de la Ley 1480 de 2011, el ARRENDADOR asume: (1) Entregar el equipo en buenas condiciones mecánicas, con la batería cargada y dispuesto para su uso seguro y efectivo. (2) Entregar toda la información pertinente, instrucciones y "Normas de Seguridad". (3) En caso de avería por causas exentas de culpa del ARRENDATARIO, procederá a reponer el equipo por el tiempo restante o a reprogramar el servicio.</p>
+        <p style="margin-top:.5rem;line-height:1.7"><strong>TERCERA. OBLIGACIONES Y PROHIBICIONES DEL ARRENDATARIO.</strong> El ARRENDATARIO asume las siguientes obligaciones: (1) Ejercer la guarda y custodia del equipo con debida diligencia. (2) Responder íntegramente por los daños ocasionados al bien. (3) Utilizar el bien exclusivamente para el fin recreativo (límite de velocidad de 4 km/h y capacidad máxima de 110 kg). (4) Comunicar de forma inmediata cualquier deficiencia o falla mecánica. (5) Asumir la responsabilidad exclusiva del monitoreo del tiempo de uso y garantizar la devolución puntual del equipo. <em>Se prohíbe</em>: uso fuera de las áreas permitidas del Parque Comercial Florida Etapa 2, circular bajo efectos del alcohol o sustancias psicoactivas, superar la capacidad máxima de 110 kg, y chocar intencionalmente con otros usuarios.</p>
+        <p style="margin-top:.5rem;line-height:1.7"><strong>QUINTA. ENTREGA Y DEVOLUCIÓN DEL BIEN.</strong> El ARRENDATARIO recibe el equipo en correcto estado de funcionamiento. Al término del periodo contratado, lo devolverá en las mismas condiciones. Cualquier daño detectado al momento de la entrega, que no haya sido reportado previamente, se presumirá causado durante el periodo de alquiler bajo su custodia.</p>
+        <p style="margin-top:.5rem;line-height:1.7"><strong>SEXTA. RESPONSABILIDAD.</strong> El ARRENDATARIO responde por los daños que ocasione a terceros, a la infraestructura del Parque Comercial Florida o a SCOOTER SVS en ejecución del presente contrato. <strong>SCOOTER SVS NO SE HARÁ CARGO NI RESPONSABLE</strong> de cualquier tipo de reclamación por accidentes, golpes, heridas o daños ocasionados por el usuario a sí mismo o a terceros derivado de la operación del equipo.</p>
+        <p style="margin-top:.5rem;line-height:1.7"><strong>SÉPTIMA. VARIOS.</strong> (1) La celebración, interpretación, ejecución y terminación de este contrato se regirá de conformidad con las leyes comerciales de Colombia. (2) La terminación del contrato no exonera a ninguna de las partes de las obligaciones que tuviere frente a la otra. (3) Las obligaciones dinerarias derivadas de este contrato son claras, expresas y exigibles, y se cobrarán mediante el procedimiento ejecutivo correspondiente. (4) Para efectos legales, se tendrán como direcciones de notificación el correo electrónico y número de celular suministrados por el ARRENDATARIO en el formulario de registro y validados mediante el código OTP.</p>
       </div>
       <div class="contrato-section">
         <strong>DATOS DEL ARRENDATARIO:</strong>
