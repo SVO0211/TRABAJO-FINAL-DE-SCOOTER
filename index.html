@@ -2499,12 +2499,10 @@ function openContratoModal(){
   setTimeout(function(){onContratoScroll(body);},120);
 }
 function _updateContratoFecha(){
-  var fv=document.getElementById('f-date').value;
-  var d=fv?new Date(fv+'T00:00:00'):new Date();
   var now=new Date();
-  var dd=String(d.getDate()).padStart(2,'0');
-  var mm=String(d.getMonth()+1).padStart(2,'0');
-  var yyyy=d.getFullYear();
+  var dd=String(now.getDate()).padStart(2,'0');
+  var mm=String(now.getMonth()+1).padStart(2,'0');
+  var yyyy=now.getFullYear();
   var hh=String(now.getHours()).padStart(2,'0');
   var min=String(now.getMinutes()).padStart(2,'0');
   var sec=String(now.getSeconds()).padStart(2,'0');
