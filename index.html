@@ -1618,6 +1618,22 @@ var _db = firebase.database();
 var _fbReady = false;
 var _fbCache = {}; // local cache — all LS.get() reads from here (sync)
 
+// Deep-normalize Firebase data: Firebase stores JS arrays as numeric-keyed objects.
+// This recursively converts {0:a,1:b,...} → [a,b,...] while preserving real objects
+// (those with non-consecutive or non-integer keys like {name:'John'} or {stand:{...}}).
+function _fbNormalize(val){
+  if(val===null||val===undefined||typeof val!=='object'||Array.isArray(val)) return val;
+  var keys=Object.keys(val);
+  if(keys.length===0) return val;
+  var isSeq=keys.every(function(k,i){return String(i)===k;});
+  if(isSeq){
+    return keys.map(function(k){return _fbNormalize(val[k]);});
+  }
+  var out={};
+  keys.forEach(function(k){out[k]=_fbNormalize(val[k]);});
+  return out;
+}
+
 // ── LS object: reads from cache (sync), writes to Firebase + localStorage ──
 const LS = {
   get: function(k){
@@ -1652,17 +1668,11 @@ function _fbInit(){
   var lo = document.getElementById('fb-loading');
   if(lo) lo.style.display = 'flex';
 
-  var _fbArrayKeys = ['sr_stands','sr_scooters','sr_rentals','sr_waitlist',
-                      'sr_rest_requests','sr_cierres','sr_entregas','sr_contratos',
-                      'sr_clients','sr_sessions','sr_cajas','sr_snapshots'];
   _db.ref('scooter').once('value', function(snap){
     var data = snap.val() || {};
     _fbKeys.forEach(function(k){
       if(data[k] !== undefined && data[k] !== null){
-        var val = data[k];
-        if(_fbArrayKeys.indexOf(k) >= 0 && typeof val === 'object' && !Array.isArray(val)){
-          val = Object.values(val);
-        }
+        var val = _fbNormalize(data[k]);
         _fbCache[k] = val;
         try{ localStorage.setItem(k, JSON.stringify(val)); }catch(e){}
       } else {
@@ -1694,21 +1704,14 @@ function _fbStartListeners(){
   var listenKeys = ['sr_rentals','sr_users','sr_scooters','sr_waitlist',
                     'sr_sessions','sr_cierres','sr_cajas','sr_pricing',
                     'sr_clients','sr_contratos','sr_stands','sr_snapshots'];
-  var _arrayKeys = ['sr_stands','sr_scooters','sr_rentals','sr_waitlist',
-                     'sr_rest_requests','sr_cierres','sr_entregas','sr_contratos',
-                     'sr_clients','sr_sessions','sr_cajas','sr_snapshots'];
   listenKeys.forEach(function(k){
     _db.ref('scooter/'+k).on('value', function(snap){
-      var val = snap.val();
-      if(val !== null){
-        if(_arrayKeys.indexOf(k) >= 0 && typeof val === 'object' && !Array.isArray(val)){
-          val = Object.values(val);
-        }
-        if(JSON.stringify(val) !== JSON.stringify(_fbCache[k])){
-          _fbCache[k] = val;
-          try{ localStorage.setItem(k, JSON.stringify(val)); }catch(e){}
-          _fbOnUpdate(k);
-        }
+      var raw = snap.val();
+      if(raw !== null){
+        var val = _fbNormalize(raw);
+        _fbCache[k] = val;
+        try{ localStorage.setItem(k, JSON.stringify(val)); }catch(e){}
+        _fbOnUpdate(k);
       }
     });
   });
@@ -2742,9 +2745,11 @@ function submitRental(){
     LS.set('sr_contratos',allContratos);
     _pendingContrato=null;
   }
-  ae.className='alert alert-success';ae.textContent=`✔ Renta registrada para ${name} · ${qty} scooter${qty>1?'s':''} por escanear.`;ae.style.display='block';
   writeLog('create','📝 Renta #'+consecutivo+' creada: '+name+' · '+qty+'sc · '+stand,{consecutivo:consecutivo});
-  resetRentalForm();toast('✔ Cliente registrado');refreshDashboard();
+  resetRentalForm();
+  toast('✔ Cliente registrado — '+name+' · '+qty+' sc');
+  refreshDashboard();
+  setTimeout(function(){ gotoView('pending'); },300);
 }
 
 // ══ TARJETAS ══
@@ -2788,7 +2793,9 @@ function renderCards(filter){
   const cont=document.getElementById('cards-container');
   if(!rs.length){cont.innerHTML='<div style="text-align:center;color:var(--muted);padding:3rem 1rem">No hay tarjetas en esta categoría</div>';return;}
   cont.innerHTML=rs.map((r,idx)=>{
-    const sds=r.scooterDetails||[];const scanned=sds.length,retd=sds.filter(s=>s.returnTime).length;
+    const rawSds=r.scooterDetails;
+    const sds=Array.isArray(rawSds)?rawSds:(rawSds&&typeof rawSds==='object'?Object.values(rawSds):[]);
+    const scanned=sds.length,retd=sds.filter(s=>s.returnTime).length;
     let cls='',badge='';
     if(r.status==='waiting')badge='<span class="badge badge-amber">⏳ Esperando despacho</span>';
     else{cls='active-card';badge=scanned<r.qty?`<span class="badge badge-purple">⊞ Salida ${scanned}/${r.qty}</span>`:retd>0?`<span class="badge badge-amber">🔁 Retorno ${retd}/${scanned}</span>`:'<span class="badge badge-green">🛵 En ruta</span>';}
@@ -2881,7 +2888,7 @@ function refreshScanSelect(){
   rs=rs.sort((a,b)=>b.createdAt-a.createdAt);
   const sel=document.getElementById('scan-rental-select');const cur=sel.value;
   sel.innerHTML='<option value="">— Selecciona renta —</option>'+rs.map(r=>{
-    const sds=r.scooterDetails||[];
+    const rawSds=r.scooterDetails;const sds=Array.isArray(rawSds)?rawSds:(rawSds&&typeof rawSds==='object'?Object.values(rawSds):[]);
     const info=scanMode==='salida'?`${sds.length}/${r.qty} salidos`:`${sds.filter(s=>s.returnTime).length}/${sds.length} retornados`;
     return`<option value="${r.id}">${r.clientName} · ${r.stand} · ${info}</option>`;
   }).join('');
@@ -2893,7 +2900,7 @@ function renderScPanel(){
   const nameEl=document.getElementById('sc-panel-client');const rowsCont=document.getElementById('sc-rows-container');const sumEl=document.getElementById('sc-panel-summary');
   if(!rentalId){nameEl.textContent='selecciona una renta';rowsCont.innerHTML='<div style="color:var(--muted);font-size:.85rem;text-align:center;padding:2rem">Selecciona una renta</div>';sumEl.style.display='none';return;}
   const r=(LS.get('sr_rentals')||[]).find(x=>x.id===rentalId);if(!r)return;
-  const sds=r.scooterDetails||[];
+  const rawSds2=r.scooterDetails;const sds=Array.isArray(rawSds2)?rawSds2:(rawSds2&&typeof rawSds2==='object'?Object.values(rawSds2):[]);
   nameEl.textContent=r.clientName+' · '+getPricingLabel(r.stand);
   rowsCont.innerHTML=Array(r.qty).fill(null).map((_,i)=>{
     const sd=sds[i];
