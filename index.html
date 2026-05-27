@@ -1696,24 +1696,94 @@ function _fbInit(){
     _fbInitDone = true;
     if(lo) lo.style.display = 'none';
     _fbRunSeed();
+    // Retry Firebase connection every 15 s until it succeeds
+    var _retryTimer = setInterval(function(){
+      _db.ref('scooter').once('value', function(snap){
+        clearInterval(_retryTimer);
+        var data = snap.val() || {};
+        _fbKeys.forEach(function(k){
+          if(data[k] !== undefined && data[k] !== null){
+            _fbCache[k] = _fbNormalize(data[k]);
+            try{ localStorage.setItem(k, JSON.stringify(_fbCache[k])); }catch(e){}
+          }
+        });
+        _fbReady = true;
+        _fbStartListeners();
+        if(CU) _fbOnUpdate('sr_rentals');
+      });
+    }, 15000);
   });
 }
 
+function _fbApplySnap(k, raw){
+  try{
+    if(raw === null) return;
+    var val = _fbNormalize(raw);
+    _fbCache[k] = val;
+    try{ localStorage.setItem(k, JSON.stringify(val)); }catch(e){}
+    _fbOnUpdate(k);
+  }catch(e){ console.warn('[sync] apply error for '+k, e); }
+}
+
 function _fbStartListeners(){
-  // Listen for changes to critical shared keys
   var listenKeys = ['sr_rentals','sr_users','sr_scooters','sr_waitlist',
                     'sr_sessions','sr_cierres','sr_cajas','sr_pricing',
                     'sr_clients','sr_contratos','sr_stands','sr_snapshots'];
+
+  // ── Layer 1: real-time on('value') listeners ──────────────────────────────
   listenKeys.forEach(function(k){
-    _db.ref('scooter/'+k).on('value', function(snap){
-      var raw = snap.val();
-      if(raw !== null){
-        var val = _fbNormalize(raw);
-        _fbCache[k] = val;
-        try{ localStorage.setItem(k, JSON.stringify(val)); }catch(e){}
-        _fbOnUpdate(k);
-      }
+    _db.ref('scooter/'+k).on('value',
+      function(snap){ _fbApplySnap(k, snap.val()); },
+      function(err){ console.warn('[sync] listener error for '+k, err); }
+    );
+  });
+
+  // ── Layer 2: polling fallback every 8 s ───────────────────────────────────
+  // Catches updates that WebSocket events might miss (mobile background, etc.)
+  var pollViewMap = {
+    'pending':   ['sr_rentals','sr_clients'],
+    'dashboard': ['sr_rentals','sr_waitlist'],
+    'caja':      ['sr_rentals','sr_cajas'],
+    'waitlist':  ['sr_waitlist'],
+    'scanner':   ['sr_rentals','sr_scooters'],
+    'history':   ['sr_rentals'],
+    'users':     ['sr_users','sr_sessions']
+  };
+  setInterval(function(){
+    if(!CU || !_fbReady) return;
+    var view = document.querySelector('.view-section.active');
+    if(!view) return;
+    var vid = view.id.replace('view-','');
+    var keys = pollViewMap[vid] || [];
+    keys.forEach(function(k){
+      _db.ref('scooter/'+k).once('value', function(snap){
+        _fbApplySnap(k, snap.val());
+      });
     });
+  }, 8000);
+
+  // ── Layer 3: resync when tab / app comes back to foreground ───────────────
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden && CU && _fbReady){
+      var view = document.querySelector('.view-section.active');
+      var vid = view ? view.id.replace('view-','') : '';
+      var keys = (pollViewMap[vid] || ['sr_rentals']);
+      keys.forEach(function(k){
+        _db.ref('scooter/'+k).once('value', function(snap){
+          _fbApplySnap(k, snap.val());
+        });
+      });
+    }
+  });
+
+  // ── Firebase connection state monitoring ──────────────────────────────────
+  _db.ref('.info/connected').on('value', function(snap){
+    if(snap.val() === true && CU){
+      // Reconnected — fire a resync of sr_rentals immediately
+      _db.ref('scooter/sr_rentals').once('value', function(snap2){
+        _fbApplySnap('sr_rentals', snap2.val());
+      });
+    }
   });
 }
 
@@ -1915,6 +1985,11 @@ function gotoView(v){
   var _ve=document.getElementById('view-'+v);if(_ve)_ve.classList.add('active');
   document.querySelectorAll('[data-view="'+v+'"]').forEach(e=>e.classList.add('active'));
   document.getElementById('content-area').scrollTop=0;
+  // Fetch fresh Firebase data for key views before rendering
+  if(_fbReady && (v==='pending'||v==='dashboard'||v==='caja'||v==='waitlist')){
+    _db.ref('scooter/sr_rentals').once('value',function(s){_fbApplySnap('sr_rentals',s.val());});
+    if(v==='waitlist')_db.ref('scooter/sr_waitlist').once('value',function(s){_fbApplySnap('sr_waitlist',s.val());});
+  }
   const fn={'mi-perfil':renderMiPerfil,dashboard:refreshDashboard,pending:()=>renderCards(currentFilter),history:renderHistory,tickets:renderTicketsHistory,caja:renderCaja,'scooter-hist':renderScooterHist,waitlist:function(){_lockStandSelect('wl-stand');renderWaitlist();renderWaitlistStats();renderWaitlistHistory();},clients:renderClients,users:function(){renderUsers();renderSessionMonitor();if(CU&&CU.role==='gerente')renderCierreSupervisor();},scooters:renderScooters,pricing:renderPricing,'stands-config':renderStandsConfig,stats:renderStats,scanner:()=>{refreshScanSelect();renderScPanel();},'new-rental':function(){setDT();_lockStandSelect('f-stand');setTimeout(function(){var inp=document.getElementById('f-name');if(inp)inp.focus();},300);}};
   if(fn[v])fn[v]();
 }
