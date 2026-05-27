@@ -1641,7 +1641,7 @@ const LS = {
 var _fbKeys = ['sr_stands','sr_users','sr_scooters','sr_rentals','sr_waitlist',
                'sr_pricing','sr_clients','sr_avatars','sr_restdays','sr_rest_requests',
                'sr_rest_history','sr_sessions','sr_cierres','sr_entregas','sr_cajas',
-               'sr_snapshots','sr_log'];
+               'sr_snapshots','sr_log','sr_contratos'];
 
 var _fbLoadCount = 0;
 var _fbTotalKeys = _fbKeys.length;
@@ -1685,7 +1685,8 @@ function _fbInit(){
 function _fbStartListeners(){
   // Listen for changes to critical shared keys
   var listenKeys = ['sr_rentals','sr_users','sr_scooters','sr_waitlist',
-                    'sr_sessions','sr_cierres','sr_cajas','sr_pricing'];
+                    'sr_sessions','sr_cierres','sr_cajas','sr_pricing',
+                    'sr_clients','sr_contratos','sr_stands','sr_snapshots'];
   listenKeys.forEach(function(k){
     _db.ref('scooter/'+k).on('value', function(snap){
       var val = snap.val();
@@ -1700,33 +1701,43 @@ function _fbStartListeners(){
 }
 
 function _fbOnUpdate(key){
-  // Re-render current view when data changes from another device
   try{
     if(!CU) return;
     var view = document.querySelector('.view-section.active');
     if(!view) return;
     var vid = view.id.replace('view-','');
     var refreshMap = {
-      'sr_rentals':  ['caja','pending','dashboard','scanner','history'],
-      'sr_users':    ['users'],
-      'sr_scooters': ['scooters','scanner','dashboard'],
-      'sr_waitlist': ['waitlist','dashboard'],
-      'sr_sessions': ['users','dashboard'],
-      'sr_cierres':  ['mi-perfil'],
-      'sr_cajas':    ['caja','users'],
-      'sr_pricing':  ['pricing']
+      'sr_rentals':   ['dashboard','pending','caja','scanner','history','tickets','scooter-hist','stats'],
+      'sr_users':     ['dashboard','users'],
+      'sr_scooters':  ['dashboard','scooters','scanner','scooter-hist'],
+      'sr_waitlist':  ['dashboard','waitlist'],
+      'sr_sessions':  ['dashboard','users'],
+      'sr_cierres':   ['mi-perfil','users'],
+      'sr_cajas':     ['caja','users','mi-perfil'],
+      'sr_pricing':   ['pricing'],
+      'sr_clients':   ['pending','caja','history','tickets','clients'],
+      'sr_contratos': ['tickets'],
+      'sr_stands':    ['pricing','stands-config'],
+      'sr_snapshots': ['dashboard','stats']
     };
     var views = refreshMap[key] || [];
     if(views.indexOf(vid) >= 0){
-      if(typeof refreshDashboard==='function' && vid==='dashboard') refreshDashboard();
-      else if(typeof renderCaja==='function' && vid==='caja') renderCaja();
-      else if(typeof renderCards==='function' && vid==='pending') renderCards(currentFilter);
-      else if(typeof renderWaitlist==='function' && vid==='waitlist') renderWaitlist();
-      else if(typeof renderUsers==='function' && vid==='users') renderUsers();
-      else if(typeof renderPricing==='function' && vid==='pricing') renderPricing();
-      else if(typeof renderScooters==='function' && vid==='scooters') renderScooters();
+      if     (vid==='dashboard'    && typeof refreshDashboard==='function')    refreshDashboard();
+      else if(vid==='caja'         && typeof renderCaja==='function')          renderCaja();
+      else if(vid==='pending'      && typeof renderCards==='function')         renderCards(currentFilter);
+      else if(vid==='waitlist'     && typeof renderWaitlist==='function')      {renderWaitlist();if(typeof renderWaitlistStats==='function')renderWaitlistStats();if(typeof renderWaitlistHistory==='function')renderWaitlistHistory();}
+      else if(vid==='users'        && typeof renderUsers==='function')         renderUsers();
+      else if(vid==='pricing'      && typeof renderPricing==='function')       renderPricing();
+      else if(vid==='scooters'     && typeof renderScooters==='function')      renderScooters();
+      else if(vid==='scanner')     {if(typeof refreshScanSelect==='function')refreshScanSelect();if(typeof renderScPanel==='function')renderScPanel();}
+      else if(vid==='history'      && typeof renderHistory==='function')       renderHistory();
+      else if(vid==='tickets'      && typeof renderTicketsHistory==='function')renderTicketsHistory();
+      else if(vid==='scooter-hist' && typeof renderScooterHist==='function')   renderScooterHist();
+      else if(vid==='clients'      && typeof renderClients==='function')       renderClients();
+      else if(vid==='stats'        && typeof renderStats==='function')         renderStats();
+      else if(vid==='mi-perfil'    && typeof renderMiPerfil==='function')      renderMiPerfil();
+      else if(vid==='stands-config'&& typeof renderStandsConfig==='function')  renderStandsConfig();
     }
-    // Always update badges
     if(typeof updateCajaBadge==='function') updateCajaBadge();
     if(typeof updateWlBadge==='function') updateWlBadge();
   }catch(e){}
