@@ -697,6 +697,8 @@ tr:hover td{background:rgba(0,170,255,.03);}
     <div class="user-pill"><div class="dot"></div><span id="topbar-user">—</span></div>
     <button id="notif-bell-btn" onclick="openRestModal()" style="display:none;position:relative;background:transparent;border:1px solid var(--amber);border-radius:10px;padding:.3rem .65rem;cursor:pointer;color:var(--amber);font-size:.82rem;font-family:var(--font);font-weight:700;white-space:nowrap;transition:all .15s" title="Solicitudes de descanso">🔔 <span id="notif-bell-count"></span></button>
     <span id="topbar-stand" style="font-size:.75rem;color:var(--muted);white-space:nowrap;overflow:hidden;max-width:110px;text-overflow:ellipsis"></span>
+    <button id="sync-btn" onclick="_fbForceSync()" title="Sincronizar con la nube" style="background:transparent;border:none;cursor:pointer;font-size:1.1rem;padding:.2rem .4rem;border-radius:6px;line-height:1;flex-shrink:0;display:none">🔄</button>
+    <span id="sync-dot" title="Estado Firebase" style="width:9px;height:9px;border-radius:50%;background:#888;flex-shrink:0;display:none"></span>
     <button class="logout-btn" onclick="doLogout()">Salir</button>
   </div>
 
@@ -1635,20 +1637,29 @@ function _fbNormalize(val){
 }
 
 // ── LS object: reads from cache (sync), writes to Firebase + localStorage ──
+var _fbWriteErrors = 0;
+function _fbSetDot(color){ var d=document.getElementById('sync-dot'); if(d)d.style.background=color; }
+
 const LS = {
   get: function(k){
-    // Primary: Firebase cache (populated on load)
     if(_fbCache.hasOwnProperty(k)) return _fbCache[k];
-    // Fallback: localStorage (offline / first load)
     try{ var v=localStorage.getItem(k); return v?JSON.parse(v):null; }catch(e){return null;}
   },
   set: function(k, v){
     _fbCache[k] = v;
-    // Write to localStorage immediately (offline support)
     try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){}
-    // Write to Firebase
     if(_fbReady){
-      _db.ref('scooter/'+k).set(v).catch(function(e){ console.warn('Firebase write error:', e); });
+      _db.ref('scooter/'+k).set(v).then(function(){
+        _fbWriteErrors=0; _fbSetDot('#00cc66');
+      }).catch(function(e){
+        _fbWriteErrors++;
+        _fbSetDot('#ff4444');
+        console.error('[FB write error]',k,e.code||e);
+        if(e.code==='PERMISSION_DENIED'){
+          var d=document.getElementById('sync-dot');
+          if(d)d.title='Error: Firebase PERMISSION_DENIED — revisa las reglas de seguridad';
+        }
+      });
     }
   }
 };
@@ -1662,67 +1673,88 @@ var _fbKeys = ['sr_stands','sr_users','sr_scooters','sr_rentals','sr_waitlist',
 var _fbLoadCount = 0;
 var _fbTotalKeys = _fbKeys.length;
 var _fbInitDone = false;
+var _fbListenersStarted = false;
+
+function _fbLoadData(data){
+  _fbKeys.forEach(function(k){
+    if(data[k]!==undefined&&data[k]!==null){
+      var val=_fbNormalize(data[k]);
+      _fbCache[k]=val;
+      try{ localStorage.setItem(k,JSON.stringify(val)); }catch(e){}
+    } else {
+      try{ var lv=localStorage.getItem(k); if(lv)_fbCache[k]=JSON.parse(lv); }catch(e){}
+    }
+  });
+}
 
 function _fbInit(){
-  // Show loading overlay
-  var lo = document.getElementById('fb-loading');
-  if(lo) lo.style.display = 'flex';
+  var lo=document.getElementById('fb-loading');
+  if(lo)lo.style.display='flex';
 
   _db.ref('scooter').once('value', function(snap){
-    var data = snap.val() || {};
-    _fbKeys.forEach(function(k){
-      if(data[k] !== undefined && data[k] !== null){
-        var val = _fbNormalize(data[k]);
-        _fbCache[k] = val;
-        try{ localStorage.setItem(k, JSON.stringify(val)); }catch(e){}
-      } else {
-        // Use localStorage fallback
-        try{
-          var lv = localStorage.getItem(k);
-          if(lv){ _fbCache[k] = JSON.parse(lv); }
-        }catch(e){}
-      }
-    });
-    _fbReady = true;
-    if(lo) lo.style.display = 'none';
-    _fbInitDone = true;
-    // Start realtime listeners for critical keys
-    _fbStartListeners();
-    // Run seed and show login
+    _fbLoadData(snap.val()||{});
+    _fbReady=true; _fbInitDone=true;
+    if(lo)lo.style.display='none';
+    _fbSetDot('#00cc66');
+    if(!_fbListenersStarted){ _fbStartListeners(); _fbListenersStarted=true; }
     _fbRunSeed();
   }, function(err){
-    console.warn('Firebase load error, using localStorage:', err);
-    _fbReady = false;
-    _fbInitDone = true;
-    if(lo) lo.style.display = 'none';
+    console.warn('[FB init error]', err);
+    _fbReady=false; _fbInitDone=true;
+    if(lo)lo.style.display='none';
+    _fbSetDot('#ff4444');
     _fbRunSeed();
-    // Retry Firebase connection every 15 s until it succeeds
-    var _retryTimer = setInterval(function(){
+    // Retry every 10 s until Firebase connects
+    var _rt=setInterval(function(){
       _db.ref('scooter').once('value', function(snap){
-        clearInterval(_retryTimer);
-        var data = snap.val() || {};
-        _fbKeys.forEach(function(k){
-          if(data[k] !== undefined && data[k] !== null){
-            _fbCache[k] = _fbNormalize(data[k]);
-            try{ localStorage.setItem(k, JSON.stringify(_fbCache[k])); }catch(e){}
-          }
-        });
-        _fbReady = true;
-        _fbStartListeners();
-        if(CU) _fbOnUpdate('sr_rentals');
+        clearInterval(_rt);
+        _fbLoadData(snap.val()||{});
+        _fbReady=true; _fbSetDot('#00cc66');
+        if(!_fbListenersStarted){ _fbStartListeners(); _fbListenersStarted=true; }
+        // Re-render current view with fresh data
+        if(CU){
+          ['sr_rentals','sr_users','sr_stands','sr_scooters','sr_waitlist'].forEach(function(k){ _fbOnUpdate(k); });
+          var view=document.querySelector('.view-section.active');
+          var vid=view?view.id.replace('view-',''):'';
+          if(vid==='dashboard'&&typeof refreshDashboard==='function') refreshDashboard();
+          else if(vid==='pending'&&typeof renderCards==='function') renderCards(currentFilter);
+          else if(vid==='users'&&typeof renderUsers==='function') renderUsers();
+        }
       });
-    }, 15000);
+    }, 10000);
   });
 }
 
 function _fbApplySnap(k, raw){
   try{
-    if(raw === null) return;
-    var val = _fbNormalize(raw);
-    _fbCache[k] = val;
-    try{ localStorage.setItem(k, JSON.stringify(val)); }catch(e){}
+    if(raw===null) return;
+    var val=_fbNormalize(raw);
+    _fbCache[k]=val;
+    try{ localStorage.setItem(k,JSON.stringify(val)); }catch(e){}
     _fbOnUpdate(k);
   }catch(e){ console.warn('[sync] apply error for '+k, e); }
+}
+
+// Force full re-sync from Firebase (called by 🔄 button)
+function _fbForceSync(){
+  if(!_fbReady){ toast('Sin conexión a Firebase'); return; }
+  _fbSetDot('#ffaa00');
+  _db.ref('scooter').once('value', function(snap){
+    _fbLoadData(snap.val()||{});
+    _fbSetDot('#00cc66');
+    toast('✔ Sincronizado con la nube');
+    if(CU){
+      var view=document.querySelector('.view-section.active');
+      var vid=view?view.id.replace('view-',''):'';
+      if(vid==='dashboard'&&typeof refreshDashboard==='function') refreshDashboard();
+      else if(vid==='pending'&&typeof renderCards==='function') renderCards(currentFilter);
+      else if(vid==='users'&&typeof renderUsers==='function') renderUsers();
+      else if(vid==='stands-config'&&typeof renderStandsConfig==='function') renderStandsConfig();
+      else if(vid==='scooters'&&typeof renderScooters==='function') renderScooters();
+      else if(vid==='waitlist'&&typeof renderWaitlist==='function') renderWaitlist();
+      else if(vid==='pricing'&&typeof renderPricing==='function') renderPricing();
+    }
+  }, function(){ _fbSetDot('#ff4444'); toast('⚠ Error al sincronizar'); });
 }
 
 function _fbStartListeners(){
@@ -1730,59 +1762,65 @@ function _fbStartListeners(){
                     'sr_sessions','sr_cierres','sr_cajas','sr_pricing',
                     'sr_clients','sr_contratos','sr_stands','sr_snapshots'];
 
-  // ── Layer 1: real-time on('value') listeners ──────────────────────────────
+  // Layer 1: real-time on('value') listeners
   listenKeys.forEach(function(k){
     _db.ref('scooter/'+k).on('value',
-      function(snap){ _fbApplySnap(k, snap.val()); },
-      function(err){ console.warn('[sync] listener error for '+k, err); }
+      function(snap){ _fbSetDot('#00cc66'); _fbApplySnap(k, snap.val()); },
+      function(err){ _fbSetDot('#ff4444'); console.warn('[sync] listener error',k,err); }
     );
   });
 
-  // ── Layer 2: polling fallback every 8 s ───────────────────────────────────
-  // Catches updates that WebSocket events might miss (mobile background, etc.)
+  // Layer 2: polling fallback every 8 s for the active view
   var pollViewMap = {
-    'pending':   ['sr_rentals','sr_clients'],
+    'pending':   ['sr_rentals'],
     'dashboard': ['sr_rentals','sr_waitlist'],
-    'caja':      ['sr_rentals','sr_cajas'],
+    'caja':      ['sr_rentals'],
     'waitlist':  ['sr_waitlist'],
     'scanner':   ['sr_rentals','sr_scooters'],
     'history':   ['sr_rentals'],
-    'users':     ['sr_users','sr_sessions']
+    'users':     ['sr_users','sr_sessions'],
+    'stands-config': ['sr_stands'],
+    'scooters':  ['sr_scooters'],
+    'pricing':   ['sr_pricing','sr_stands']
   };
   setInterval(function(){
-    if(!CU || !_fbReady) return;
-    var view = document.querySelector('.view-section.active');
+    if(!CU||!_fbReady) return;
+    var view=document.querySelector('.view-section.active');
     if(!view) return;
-    var vid = view.id.replace('view-','');
-    var keys = pollViewMap[vid] || [];
-    keys.forEach(function(k){
-      _db.ref('scooter/'+k).once('value', function(snap){
-        _fbApplySnap(k, snap.val());
-      });
+    var vid=view.id.replace('view-','');
+    (pollViewMap[vid]||[]).forEach(function(k){
+      _db.ref('scooter/'+k).once('value',function(snap){ _fbApplySnap(k,snap.val()); });
     });
   }, 8000);
 
-  // ── Layer 3: resync when tab / app comes back to foreground ───────────────
+  // Layer 3: resync when tab becomes visible
   document.addEventListener('visibilitychange', function(){
-    if(!document.hidden && CU && _fbReady){
-      var view = document.querySelector('.view-section.active');
-      var vid = view ? view.id.replace('view-','') : '';
-      var keys = (pollViewMap[vid] || ['sr_rentals']);
+    if(!document.hidden&&CU&&_fbReady){
+      var view=document.querySelector('.view-section.active');
+      var vid=view?view.id.replace('view-',''):'';
+      var keys=(pollViewMap[vid]||['sr_rentals','sr_users','sr_stands']);
       keys.forEach(function(k){
-        _db.ref('scooter/'+k).once('value', function(snap){
-          _fbApplySnap(k, snap.val());
-        });
+        _db.ref('scooter/'+k).once('value',function(snap){ _fbApplySnap(k,snap.val()); });
       });
     }
   });
 
-  // ── Firebase connection state monitoring ──────────────────────────────────
+  // Layer 4: full resync on Firebase reconnect
   _db.ref('.info/connected').on('value', function(snap){
-    if(snap.val() === true && CU){
-      // Reconnected — fire a resync of sr_rentals immediately
-      _db.ref('scooter/sr_rentals').once('value', function(snap2){
-        _fbApplySnap('sr_rentals', snap2.val());
+    var dot=document.getElementById('sync-dot');
+    if(snap.val()===true){
+      _fbSetDot('#00cc66');
+      if(dot)dot.title='Firebase conectado';
+      // Re-fetch all critical data when connection restores
+      _db.ref('scooter').once('value',function(s){
+        _fbLoadData(s.val()||{});
+        if(CU){
+          ['sr_rentals','sr_users','sr_stands','sr_scooters','sr_waitlist','sr_pricing'].forEach(function(k){ _fbOnUpdate(k); });
+        }
       });
+    } else {
+      _fbSetDot('#ff4444');
+      if(dot)dot.title='Firebase desconectado';
     }
   });
 }
@@ -1962,7 +2000,10 @@ setupPWA();
 // ══ AUTH ══
 function doLogout(){
   if(CU){var _s=LS.get('sr_sessions')||{};if(_s[CU.username])_s[CU.username].logoutAt=Date.now();LS.set('sr_sessions',_s);}
-  CU=null;stopCam();document.getElementById('view-app').style.display='none';document.getElementById('view-login').style.display='flex';document.getElementById('login-user').value='';document.getElementById('login-pass').value='';document.getElementById('login-error').style.display='none';}
+  CU=null;stopCam();
+  var sb=document.getElementById('sync-btn');if(sb)sb.style.display='none';
+  var sd=document.getElementById('sync-dot');if(sd)sd.style.display='none';
+  document.getElementById('view-app').style.display='none';document.getElementById('view-login').style.display='flex';document.getElementById('login-user').value='';document.getElementById('login-pass').value='';document.getElementById('login-error').style.display='none';}
 
 // ══ MOBILE MENU ══
 function toggleMobileMenu(){const m=document.getElementById('bn-more-menu');const o=document.getElementById('more-overlay');const open=m.classList.toggle('open');o.style.display=open?'block':'none';}
@@ -7479,6 +7520,10 @@ function completarLogin(found, stand){
     }
   }
 
+  // Show sync indicator and button
+  var syncBtn=document.getElementById('sync-btn'); if(syncBtn)syncBtn.style.display='';
+  var syncDot=document.getElementById('sync-dot'); if(syncDot)syncDot.style.display='';
+
   writeLog('login','🔑 Sesión iniciada: '+CU.username+' ('+CU.role+' · '+CU.stand+')',null);
   var _sess=LS.get('sr_sessions')||{};
   _sess[CU.username]={loginAt:Date.now(),logoutAt:null,stand:CU.stand,role:CU.role,fullName:CU.fullName||CU.username};
@@ -7486,8 +7531,21 @@ function completarLogin(found, stand){
   updateRestBadge();
   updateCajaBadge();
   setDT();
-  gotoView('dashboard');
-  setTimeout(function(){if(typeof renderAperturaTurno==='function')renderAperturaTurno();},300);
+
+  // Always do a fresh Firebase read on login to ensure data is current
+  if(_fbReady){
+    _db.ref('scooter').once('value', function(snap){
+      _fbLoadData(snap.val()||{});
+      gotoView('dashboard');
+      setTimeout(function(){if(typeof renderAperturaTurno==='function')renderAperturaTurno();},300);
+    }, function(){
+      gotoView('dashboard');
+      setTimeout(function(){if(typeof renderAperturaTurno==='function')renderAperturaTurno();},300);
+    });
+  } else {
+    gotoView('dashboard');
+    setTimeout(function(){if(typeof renderAperturaTurno==='function')renderAperturaTurno();},300);
+  }
 }
 
 
