@@ -1652,12 +1652,19 @@ function _fbInit(){
   var lo = document.getElementById('fb-loading');
   if(lo) lo.style.display = 'flex';
 
+  var _fbArrayKeys = ['sr_stands','sr_scooters','sr_rentals','sr_waitlist',
+                      'sr_rest_requests','sr_cierres','sr_entregas','sr_contratos',
+                      'sr_clients','sr_sessions','sr_cajas','sr_snapshots'];
   _db.ref('scooter').once('value', function(snap){
     var data = snap.val() || {};
     _fbKeys.forEach(function(k){
       if(data[k] !== undefined && data[k] !== null){
-        _fbCache[k] = data[k];
-        try{ localStorage.setItem(k, JSON.stringify(data[k])); }catch(e){}
+        var val = data[k];
+        if(_fbArrayKeys.indexOf(k) >= 0 && typeof val === 'object' && !Array.isArray(val)){
+          val = Object.values(val);
+        }
+        _fbCache[k] = val;
+        try{ localStorage.setItem(k, JSON.stringify(val)); }catch(e){}
       } else {
         // Use localStorage fallback
         try{
@@ -1687,14 +1694,21 @@ function _fbStartListeners(){
   var listenKeys = ['sr_rentals','sr_users','sr_scooters','sr_waitlist',
                     'sr_sessions','sr_cierres','sr_cajas','sr_pricing',
                     'sr_clients','sr_contratos','sr_stands','sr_snapshots'];
+  var _arrayKeys = ['sr_stands','sr_scooters','sr_rentals','sr_waitlist',
+                     'sr_rest_requests','sr_cierres','sr_entregas','sr_contratos',
+                     'sr_clients','sr_sessions','sr_cajas','sr_snapshots'];
   listenKeys.forEach(function(k){
     _db.ref('scooter/'+k).on('value', function(snap){
       var val = snap.val();
-      if(val !== null && JSON.stringify(val) !== JSON.stringify(_fbCache[k])){
-        _fbCache[k] = val;
-        try{ localStorage.setItem(k, JSON.stringify(val)); }catch(e){}
-        // Refresh current view if relevant
-        _fbOnUpdate(k);
+      if(val !== null){
+        if(_arrayKeys.indexOf(k) >= 0 && typeof val === 'object' && !Array.isArray(val)){
+          val = Object.values(val);
+        }
+        if(JSON.stringify(val) !== JSON.stringify(_fbCache[k])){
+          _fbCache[k] = val;
+          try{ localStorage.setItem(k, JSON.stringify(val)); }catch(e){}
+          _fbOnUpdate(k);
+        }
       }
     });
   });
