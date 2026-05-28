@@ -3092,9 +3092,12 @@ function processScan(){
   if(scanMode==='retorno'){
     const sdIdx=r.scooterDetails.findIndex(sd=>sd.code===sc.code);
     if(sdIdx===-1){showSR('error',sc.code+' no tiene salida en esta renta.');return;}
-    const sd=r.scooterDetails[sdIdx];if(sd.returnTime){showSR('error',sc.code+' ya fue retornado.');return;}
-    const now=Date.now();const mins=Math.ceil((now-sd.exitTime)/60000);const subtotal=calcSubtotal(mins,r.stand);
-    r.scooterDetails[sdIdx]={...sd,returnTime:now,mins,subtotal,returnedBy:CU.username};
+    const sd=r.scooterDetails[sdIdx];
+    if(sd.returnTime && sc.status!=='rented'){showSR('error',sc.code+' ya fue retornado.');return;}
+    const now=Date.now();
+    const exitTs=sd.exitTime||now;
+    const mins=Math.ceil((now-exitTs)/60000);const subtotal=calcSubtotal(mins,r.stand);
+    r.scooterDetails[sdIdx]={...sd,exitTime:exitTs,returnTime:now,mins,subtotal,returnedBy:CU.username};
     sc.status='available';scooters[scIdx]=sc;
     const allDone=r.scooterDetails.length===r.qty&&r.scooterDetails.every(s=>s.returnTime);
     if(allDone){r.returnTime=now;r.returnBy=CU.username;r.totalBefore=r.scooterDetails.reduce((s,x)=>s+(x.subtotal||0),0);
