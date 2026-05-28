@@ -940,6 +940,13 @@ tr:hover td{background:rgba(0,170,255,.03);}
           <div id="contabilidad-content"></div>
         </div>
 
+        <!-- Zona de peligro — solo gerente -->
+        <div id="gerente-danger-zone" style="display:none;margin-top:2rem;padding:1rem;border:1.5px solid rgba(255,68,68,.35);border-radius:14px;background:rgba(255,68,68,.05)">
+          <div style="font-size:.78rem;font-weight:700;color:#ff4444;letter-spacing:.06em;margin-bottom:.5rem">⚠ ZONA DE PELIGRO</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-bottom:.85rem;line-height:1.5">Elimina <strong style="color:var(--text)">todos</strong> los datos de la app (rentas, usuarios, stands, caja…) de forma permanente. Úsalo solo para entregar la app al cliente desde cero.</div>
+          <button onclick="resetAllData()" style="background:rgba(255,68,68,.18);color:#ff6666;border:1.5px solid rgba(255,68,68,.4);border-radius:10px;padding:.6rem 1.2rem;font-size:.85rem;font-weight:700;cursor:pointer;width:100%">🗑 Reiniciar todos los datos</button>
+        </div>
+
       </div>
 
       <!-- NUEVA RENTA -->
@@ -2865,7 +2872,7 @@ function submitRental(){
   resetRentalForm();
   toast('✔ Cliente registrado — '+name+' · '+qty+' sc');
   refreshDashboard();
-  setTimeout(function(){ gotoView('pending'); },300);
+  setTimeout(function(){var nf=document.getElementById('f-name');if(nf)nf.focus();},200);
 }
 
 // ══ TARJETAS ══
@@ -2999,8 +3006,19 @@ function setScanMode(mode){
 }
 function refreshScanSelect(){
   const stand=myStand();let rs=rs4s(stand==='Todos'?'all':stand);
-  if(scanMode==='salida')rs=rs.filter(r=>r.status==='waiting'||r.status==='active');
-  else rs=rs.filter(r=>r.status==='active');
+  if(scanMode==='salida'){
+    rs=rs.filter(r=>{
+      if(r.status!=='waiting'&&r.status!=='active')return false;
+      const sds=Array.isArray(r.scooterDetails)?r.scooterDetails:Object.values(r.scooterDetails||{});
+      return sds.length<r.qty;
+    });
+  } else {
+    rs=rs.filter(r=>{
+      if(r.status!=='active')return false;
+      const sds=Array.isArray(r.scooterDetails)?r.scooterDetails:Object.values(r.scooterDetails||{});
+      return sds.some(sd=>sd.exitTime&&!sd.returnTime);
+    });
+  }
   rs=rs.sort((a,b)=>b.createdAt-a.createdAt);
   const sel=document.getElementById('scan-rental-select');const cur=sel.value;
   sel.innerHTML='<option value="">— Selecciona renta —</option>'+rs.map(r=>{
@@ -3045,7 +3063,9 @@ function processScan(){
   if(!code){showSR('error','Ingresa o escanea el código.');return;}
   const rentals=LS.get('sr_rentals')||[];const scooters=LS.get('sr_scooters')||[];
   const rIdx=rentals.findIndex(r=>r.id===rentalId);if(rIdx===-1){showSR('error','Renta no encontrada.');return;}
-  const r=rentals[rIdx];if(!r.scooterDetails)r.scooterDetails=[];
+  const r=rentals[rIdx];
+  const _rawSds=r.scooterDetails;
+  r.scooterDetails=Array.isArray(_rawSds)?_rawSds:(_rawSds&&typeof _rawSds==='object'?Object.values(_rawSds):[]);
   const scIdx=scooters.findIndex(s=>s.code.toUpperCase()===code||code.startsWith(s.code.toUpperCase())||s.code.toUpperCase().startsWith(code));
   if(scIdx===-1){showSR('error',`"${code}" no encontrado. Verifica que esté registrado en Scooters.`);return;}
   const sc=scooters[scIdx];
@@ -3057,6 +3077,7 @@ function processScan(){
     r.scooterDetails.push({code:sc.code,exitTime:now,returnTime:null,mins:null,subtotal:null,scannedBy:CU.username});
     sc.status='rented';if(!r.exitTime){r.exitTime=now;r.dispatchBy=CU.username;}r.status='active';
     rentals[rIdx]=r;scooters[scIdx]=sc;LS.set('sr_rentals',rentals);LS.set('sr_scooters',scooters);
+    writeLog('dispatch','🛵 Salida: '+sc.code+' · Renta #'+r.consecutivo+' ('+r.clientName+')',{code:sc.code,rentalId:r.id});
     const rem=r.qty-r.scooterDetails.length;
     showSR('success','✔ Salida: '+sc.code+' · '+fT(now)+(rem>0?' · Faltan '+rem+' sc':' · ¡Todos salieron!'));
     document.getElementById('scan-code').value='';refreshScanSelect();renderScPanel();refreshDashboard();
@@ -3073,18 +3094,16 @@ function processScan(){
     if(sdIdx===-1){showSR('error',sc.code+' no tiene salida en esta renta.');return;}
     const sd=r.scooterDetails[sdIdx];if(sd.returnTime){showSR('error',sc.code+' ya fue retornado.');return;}
     const now=Date.now();const mins=Math.ceil((now-sd.exitTime)/60000);const subtotal=calcSubtotal(mins,r.stand);
-    r.scooterDetails[sdIdx]={...sd,returnTime:now,mins,subtotal};
+    r.scooterDetails[sdIdx]={...sd,returnTime:now,mins,subtotal,returnedBy:CU.username};
     sc.status='available';scooters[scIdx]=sc;
     const allDone=r.scooterDetails.length===r.qty&&r.scooterDetails.every(s=>s.returnTime);
-    r.scooterDetails[sdIdx]={...r.scooterDetails[sdIdx],returnTime:now,mins,subtotal,returnedBy:CU.username};
-    r.scooterDetails[sdIdx]={...r.scooterDetails[sdIdx]}; // update already done above
     if(allDone){r.returnTime=now;r.returnBy=CU.username;r.totalBefore=r.scooterDetails.reduce((s,x)=>s+(x.subtotal||0),0);
       if(r.vipDiscount&&r.vipDiscount>0){r.discount=Math.round(r.totalBefore*(r.vipDiscount/100));r.total=r.totalBefore-r.discount;}
       else{r.total=r.totalBefore;r.discount=0;}
       r.cobroCode=genCobroCode();
       r.status='returned';updateDailySnapshot(r);}
     rentals[rIdx]=r;LS.set('sr_rentals',rentals);LS.set('sr_scooters',scooters);
-    if(scanMode==='salida')writeLog('dispatch','🛵 Salida: '+sc.code+' · Renta #'+r.consecutivo+' ('+r.clientName+')',{code:sc.code,rentalId:r.id});
+    writeLog('return','🔄 Retorno: '+sc.code+' · '+mins+'min · '+fM(subtotal)+' · Renta #'+r.consecutivo+' ('+r.clientName+')',{code:sc.code,rentalId:r.id});
     const pending=r.scooterDetails.filter(s=>!s.returnTime).length;
     showSR('success','✔ Retorno: '+sc.code+' · '+mins+'min · '+fM(subtotal)+(allDone?' · ¡Renta cerrada!':pending>0?' · Quedan '+pending+' sc.':''));
     document.getElementById('scan-code').value='';refreshScanSelect();renderScPanel();refreshDashboard();
@@ -4694,6 +4713,8 @@ function renderMiPerfil(){
   if(contabTab) contabTab.style.display = CU.role==='gerente' ? '' : 'none';
   if(contabContent && CU.role!=='gerente') contabContent.style.display = 'none';
   // Also hide Cierre tab for gerente's employees — cierre is for all
+  var dangerZone = document.getElementById('gerente-danger-zone');
+  if(dangerZone) dangerZone.style.display = CU.role==='gerente' ? '' : 'none';
 
   var us=LS.get('sr_users')||[];
   var user=us.find(function(u){return u.username===CU.username;})||CU;
@@ -4800,6 +4821,28 @@ function renderMiPerfil(){
 
   renderPerfilRest();
   renderPerfilActividad();
+}
+
+function resetAllData(){
+  if(!CU||CU.role!=='gerente') return;
+  var first=confirm('⚠ ¿Estás seguro?\n\nEsto eliminará PERMANENTEMENTE todos los datos:\nrentas, usuarios, stands, caja, clientes, etc.\n\nEsta acción NO se puede deshacer.');
+  if(!first) return;
+  var second=confirm('🔴 SEGUNDA CONFIRMACIÓN\n\nEscribe mentalmente "REINICIAR" para continuar.\n\n¿Confirmas que deseas borrar TODOS los datos y dejar la app en blanco?');
+  if(!second) return;
+  toast('Eliminando datos…');
+  function doReset(){
+    localStorage.clear();
+    location.reload();
+  }
+  if(typeof _db!=='undefined'&&_fbReady){
+    _db.ref('scooter').remove().then(doReset).catch(function(e){
+      console.error('[resetAllData]',e);
+      // Firebase failed but still clear local data
+      doReset();
+    });
+  } else {
+    doReset();
+  }
 }
 
 function setPerfilTab(tab, el){
@@ -8267,13 +8310,6 @@ setDT();
     if(!_vEl)return;
     _vEl.addEventListener('mousedown',_onKey,false);
     _vEl.addEventListener('touchstart',_onKey,{passive:false});
-    var sec=document.getElementById('view-new-rental');
-    if(sec){
-      sec.addEventListener('focusin',function(e){
-        var el=e.target;
-        if(el.tagName==='INPUT'&&(el.type==='text'||el.type==='tel'))_open(el);
-      });
-    }
     var _og=window.gotoView;
     window.gotoView=function(v){
       if(v!=='new-rental')_close();
