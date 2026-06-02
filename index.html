@@ -1684,13 +1684,18 @@ var _fbTotalKeys = _fbKeys.length;
 var _fbInitDone = false;
 var _fbListenersStarted = false;
 
-function _fbLoadData(data){
+function _fbLoadData(data, fbRootWasNull){
   _fbKeys.forEach(function(k){
     if(data[k]!==undefined&&data[k]!==null){
       var val=_fbNormalize(data[k]);
       _fbCache[k]=val;
       try{ localStorage.setItem(k,JSON.stringify(val)); }catch(e){}
+    } else if(fbRootWasNull){
+      // Firebase root was explicitly null (all data deleted) — wipe localStorage too
+      delete _fbCache[k];
+      try{ localStorage.removeItem(k); }catch(e){}
     } else {
+      // Key absent from Firebase but DB has other data — fall back to localStorage
       try{ var lv=localStorage.getItem(k); if(lv)_fbCache[k]=JSON.parse(lv); }catch(e){}
     }
   });
@@ -1701,7 +1706,7 @@ function _fbInit(){
   if(lo)lo.style.display='flex';
 
   _db.ref('scooter').once('value', function(snap){
-    _fbLoadData(snap.val()||{});
+    var _fbRaw=snap.val(); _fbLoadData(_fbRaw||{},_fbRaw===null);
     _fbReady=true; _fbInitDone=true;
     if(lo)lo.style.display='none';
     _fbSetDot('#00cc66');
@@ -1717,7 +1722,7 @@ function _fbInit(){
     var _rt=setInterval(function(){
       _db.ref('scooter').once('value', function(snap){
         clearInterval(_rt);
-        _fbLoadData(snap.val()||{});
+        var _fbRaw2=snap.val(); _fbLoadData(_fbRaw2||{},_fbRaw2===null);
         _fbReady=true; _fbSetDot('#00cc66');
         if(!_fbListenersStarted){ _fbStartListeners(); _fbListenersStarted=true; }
         // Re-render current view with fresh data
@@ -1779,7 +1784,7 @@ function _fbForceSync(){
   if(!_fbReady){ toast('Sin conexión a Firebase'); return; }
   _fbSetDot('#ffaa00');
   _db.ref('scooter').once('value', function(snap){
-    _fbLoadData(snap.val()||{});
+    var _fbRaw3=snap.val(); _fbLoadData(_fbRaw3||{},_fbRaw3===null);
     _fbSetDot('#00cc66');
     toast('✔ Sincronizado con la nube');
     if(CU){
