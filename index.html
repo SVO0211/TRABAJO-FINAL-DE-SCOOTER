@@ -943,6 +943,8 @@ tr:hover td{background:rgba(0,170,255,.03);}
         <!-- Zona de peligro — solo gerente -->
         <div id="gerente-danger-zone" style="display:none;margin-top:2rem;padding:1rem;border:1.5px solid rgba(255,68,68,.35);border-radius:14px;background:rgba(255,68,68,.05)">
           <div style="font-size:.78rem;font-weight:700;color:#ff4444;letter-spacing:.06em;margin-bottom:.5rem">⚠ ZONA DE PELIGRO</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-bottom:.6rem;line-height:1.5">Si la app muestra registros que no están en Firebase (datos locales huérfanos), usa este botón para limpiarlos y cargar solo lo que está en la nube.</div>
+          <button onclick="_fbSyncFromCloud()" style="background:rgba(255,170,0,.15);color:#ffaa00;border:1.5px solid rgba(255,170,0,.4);border-radius:10px;padding:.6rem 1.2rem;font-size:.85rem;font-weight:700;cursor:pointer;width:100%;margin-bottom:.75rem">☁ Limpiar datos locales y cargar desde Firebase</button>
           <div style="font-size:.8rem;color:var(--muted);margin-bottom:.85rem;line-height:1.5">Elimina <strong style="color:var(--text)">todos</strong> los datos de la app (rentas, usuarios, stands, caja…) de forma permanente. Úsalo solo para entregar la app al cliente desde cero.</div>
           <button onclick="resetAllData()" style="background:rgba(255,68,68,.18);color:#ff6666;border:1.5px solid rgba(255,68,68,.4);border-radius:10px;padding:.6rem 1.2rem;font-size:.85rem;font-weight:700;cursor:pointer;width:100%">🗑 Reiniciar todos los datos</button>
         </div>
@@ -1792,6 +1794,31 @@ function _fbForceSync(){
       else if(vid==='pricing'&&typeof renderPricing==='function') renderPricing();
     }
   }, function(){ _fbSetDot('#ff4444'); toast('⚠ Error al sincronizar'); });
+}
+
+function _fbSyncFromCloud(){
+  if(!_fbReady){ toast('Sin conexión a Firebase'); return; }
+  if(!confirm('¿Limpiar datos locales y cargar solo lo que está en Firebase?\n\nLos datos en Firebase NO se tocan. Solo se eliminan registros locales que no existen en Firebase.')) return;
+  _fbSetDot('#ffaa00');
+  _db.ref('scooter').once('value', function(snap){
+    // Wipe every local key first so nothing survives from localStorage
+    _fbKeys.forEach(function(k){
+      try{ localStorage.removeItem(k); }catch(e){}
+      delete _fbCache[k];
+    });
+    // Reload strictly from Firebase — no localStorage fallback
+    var data=snap.val()||{};
+    _fbKeys.forEach(function(k){
+      if(data[k]!==undefined&&data[k]!==null){
+        var val=_fbNormalize(data[k]);
+        _fbCache[k]=val;
+        try{ localStorage.setItem(k,JSON.stringify(val)); }catch(e){}
+      }
+    });
+    _fbSetDot('#00cc66');
+    toast('✔ Datos locales limpiados — recargando...');
+    setTimeout(function(){ location.reload(); },800);
+  },function(){ _fbSetDot('#ff4444'); toast('⚠ Error al conectar con Firebase'); });
 }
 
 function _fbStartListeners(){
