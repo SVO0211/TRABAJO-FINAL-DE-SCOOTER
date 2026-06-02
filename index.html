@@ -247,8 +247,8 @@ tr:hover td{background:rgba(0,170,255,.03);}
 .rental-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:1.1rem;border-left:4px solid var(--amber);-webkit-transition:all .2s;transition:all .2s;}
 .rental-card:hover{border-color:var(--accent);border-left-color:var(--amber);}
 .rental-card.active-card{border-left-color:var(--accent);box-shadow:inset 3px 0 12px rgba(0,170,255,.1);}
-.rc-name{font-weight:700;font-size:1rem;margin-bottom:.25rem;color:var(--text);}
-.rc-doc{font-size:.8rem;color:var(--muted);margin-bottom:.65rem;}
+.rc-name{font-weight:700;font-size:1rem;margin-bottom:.25rem;color:var(--text);word-break:break-word;line-height:1.25;}
+.rc-doc{font-size:.8rem;color:var(--muted);margin-bottom:.65rem;overflow-wrap:break-word;word-break:break-word;}
 .rc-info{display:flex;-ms-flex-wrap:wrap;flex-wrap:wrap;gap:.4rem;margin-bottom:.65rem;}
 /* ── TIMER ESPERA ── */
 .wait-timer{display:-webkit-inline-box;display:-ms-inline-flexbox;display:inline-flex;-webkit-box-align:center;-ms-flex-align:center;align-items:center;gap:.35rem;padding:.3rem .7rem;border-radius:20px;font-size:.78rem;font-weight:700;font-family:'IBM Plex Mono','Courier New',monospace;letter-spacing:.5px;white-space:nowrap;}
@@ -2927,18 +2927,20 @@ function renderCards(filter){
     const vipBadge=r.isVIP?'<span class="vip-badge"><span class="vip-star">⭐</span>VIP</span>':'';
     const consec=r.consecutivo||'—';
     // Timer placeholder — updated by ticker
-    const timerPlaceholder=`<span class="wait-timer ok" id="wt-${r.id}" data-created="${r.createdAt||Date.now()}" data-status="${r.status}" data-exit="${r.exitTime||0}">⏱ —</span>`;
+    const timerPlaceholder=`<span class="wait-timer ok" id="wt-${r.id}" data-created="${r.createdAt||Date.now()}" data-status="${r.status}" data-exit="${r.exitTime||0}" style="margin-top:.3rem;max-width:100%">⏱ —</span>`;
     // For active cards: show time since exit (en ruta)
     const barId='wb-'+r.id;
     return`<div class="rental-card ${cls}${r.isVIP?' vip-client':''}" id="card-${r.id}">
-      <div style="display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-ms-flex-align:center;align-items:center;gap:.65rem;margin-bottom:.5rem">
-        <div class="card-num ${numClass}">${consec}</div>
-        <div style="-webkit-box-flex:1;-ms-flex:1;flex:1"><div class="rc-name" style="margin:0">${r.clientName} ${vipBadge}</div></div>
-        ${timerPlaceholder}
+      <div style="display:flex;align-items:flex-start;gap:.65rem;margin-bottom:.5rem;min-width:0">
+        <div class="card-num ${numClass}" style="flex-shrink:0;margin-top:.1rem">${consec}</div>
+        <div style="flex:1;min-width:0;overflow:hidden">
+          <div class="rc-name" style="margin:0">${r.clientName} ${vipBadge}</div>
+          ${timerPlaceholder}
+        </div>
       </div>
       <div class="wait-bar"><div class="wait-bar-fill" id="${barId}" style="width:0%;background:#00aaff"></div></div>
       <div class="rc-doc">Doc: ${r.clientDoc}${r.clientPhone?' · 📞 '+r.clientPhone:''} · ${r.qty} sc · ${r.stand}</div>
-      <div class="rc-info">${badge}<span class="badge badge-purple" style="font-size:.68rem">${r.stand}</span></div>
+      <div class="rc-info">${badge}</div>
       <div style="font-size:.78rem;color:var(--muted)">Scooters:</div>
       <div class="scooter-list">${pills}</div>
       <div style="margin-top:.85rem;display:-webkit-box;display:-ms-flexbox;display:flex;gap:.5rem;-ms-flex-wrap:wrap;flex-wrap:wrap">
