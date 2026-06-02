@@ -1904,6 +1904,8 @@ if(!LS.get('sr_snapshots'))LS.set('sr_snapshots',{});
 
 // ══ STATE ══
 let CU=null,camStream=null,currentFilter='waiting',scanMode='salida',statsPeriod='day',editingAvatarUser=null,deferredPrompt=null;
+// Session-local registry: tracks returns WE processed so Firebase stale data can't create false positives
+const _returnedThisSession={}; // key: rentalId+'::'+scooterCode
 
 // ══ DAILY SNAPSHOT ══
 function checkDailySnapshot(){
@@ -3095,7 +3097,8 @@ function processScan(){
     const sdIdx=r.scooterDetails.findIndex(sd=>sd.code===sc.code);
     if(sdIdx===-1){showSR('error',sc.code+' no tiene salida en esta renta.');return;}
     const sd=r.scooterDetails[sdIdx];
-    if(sd.returnTime && sc.status!=='rented'){showSR('error',sc.code+' ya fue retornado.');return;}
+    // Use session registry as sole truth — Firebase stale snapshots cannot create false positives
+    if(_returnedThisSession[r.id+'::'+sc.code]){showSR('error',sc.code+' ya fue retornado.');return;}
     const now=Date.now();
     const exitTs=sd.exitTime||now;
     const mins=Math.ceil((now-exitTs)/60000);const subtotal=calcSubtotal(mins,r.stand);
@@ -3108,6 +3111,7 @@ function processScan(){
       r.cobroCode=genCobroCode();
       r.status='returned';updateDailySnapshot(r);}
     rentals[rIdx]=r;LS.set('sr_rentals',rentals);LS.set('sr_scooters',scooters);
+    _returnedThisSession[r.id+'::'+sc.code]=true;
     writeLog('return','🔄 Retorno: '+sc.code+' · '+mins+'min · '+fM(subtotal)+' · Renta #'+r.consecutivo+' ('+r.clientName+')',{code:sc.code,rentalId:r.id});
     const pending=r.scooterDetails.filter(s=>!s.returnTime).length;
     showSR('success','✔ Retorno: '+sc.code+' · '+mins+'min · '+fM(subtotal)+(allDone?' · ¡Renta cerrada!':pending>0?' · Quedan '+pending+' sc.':''));
