@@ -3112,10 +3112,18 @@ function processScan(){
     const pending=r.scooterDetails.filter(s=>!s.returnTime).length;
     showSR('success','✔ Retorno: '+sc.code+' · '+mins+'min · '+fM(subtotal)+(allDone?' · ¡Renta cerrada!':pending>0?' · Quedan '+pending+' sc.':''));
     document.getElementById('scan-code').value='';refreshScanSelect();renderScPanel();refreshDashboard();
+    const _retData={r:r,sc:sc,sd:r.scooterDetails[sdIdx],mins:mins,subtotal:subtotal,pending:pending};
     if(allDone){
       writeLog('close','🔒 Renta #'+r.consecutivo+' cerrada: '+r.clientName+' · '+r.stand+' · '+fM(r.total)+(r.isVIP?' (VIP -'+fM(r.discount)+')':''),{id:r.id,total:r.total});
       if(r.isVIP&&r.discount>0)writeLog('vip','⭐ VIP: '+r.clientName+' -'+fM(r.discount)+' ('+r.vipDiscount+'%) cobrado por '+(r.returnBy||CU.username),{id:r.id});
-      setTimeout(function(){showTicket(r);showClientConf(r);},350);toast('✔ Renta cerrada: '+r.clientName);updateCajaBadge();
+      toast('✔ Renta cerrada: '+r.clientName);updateCajaBadge();
+      setTimeout(function(){
+        jalOpen('retorno',_retData,function(){
+          setTimeout(function(){showTicket(r);showClientConf(r);},200);
+        });
+      },350);
+    } else {
+      setTimeout(function(){jalOpen('retorno',_retData);},300);
     }
     return;
   }
@@ -7768,12 +7776,14 @@ document.addEventListener("DOMContentLoaded", function(){ _fbInit(); });
 var _jalDevice   = null;
 var _jalChar     = null;
 var _jalTicket   = null;  // {type, data}
+var _jalOnClose  = null;  // optional callback fired when JAL modal closes
 
 // ─────────────────────────────────────────────
 //  1. ABRIR MODAL
 // ─────────────────────────────────────────────
-function jalOpen(type, data){
+function jalOpen(type, data, onClose){
   _jalTicket = {type:type, data:data};
+  _jalOnClose = onClose || null;
   // Preview
   var prev = document.getElementById('jal-preview');
   if(prev) prev.textContent = jalBuildText(type, data);
@@ -7787,6 +7797,7 @@ function jalOpen(type, data){
 function jalClose(){
   var m = document.getElementById('jal-modal');
   if(m) m.classList.remove('open');
+  if(_jalOnClose){ var cb=_jalOnClose; _jalOnClose=null; cb(); }
 }
 
 // ─────────────────────────────────────────────
@@ -7946,6 +7957,44 @@ function jalBuildText(type, data){
     L.push(row('Total unidades:', r.qty+' scooter'+(r.qty>1?'s':'')));
     L.push(sep('='));
     L.push(center('¡Buen paseo! 🛵'));
+  }
+
+  // ── RETORNO INDIVIDUAL DE SCOOTER ──
+  else if(type === 'retorno'){
+    var d = data; var r = d.r;
+    var allDoneLocal = d.pending === 0;
+    L.push(center(allDoneLocal ? '✅ RETORNO — RENTA CERRADA' : '🔄 TICKET DE RETORNO'));
+    L.push(center('Renta #'+(r.consecutivo||'—')));
+    L.push(sep('-'));
+    L.push('👤 '+(r.clientName||'—')+(r.isVIP?' ⭐ VIP':''));
+    if(r.clientDoc)   L.push('🪪 Doc: '+r.clientDoc);
+    if(r.clientPhone) L.push('📞 Tel: '+r.clientPhone);
+    L.push('📍 Stand: '+(r.stand||'—'));
+    L.push(sep('-'));
+    L.push(row('🛵 Scooter:', d.sd.code));
+    L.push(row('⏰ Salida:', fT(d.sd.exitTime)));
+    L.push(row('🔄 Retorno:', fT(d.sd.returnTime)));
+    L.push(row('⏱ Tiempo:', d.mins+'min'));
+    L.push(row('💵 Cobro este sc.:', fM(d.subtotal)));
+    L.push(sep('-'));
+    var retornados = (r.scooterDetails||[]).filter(function(s){ return s.returnTime; });
+    L.push(row('Retornados:', retornados.length+' de '+r.qty));
+    if(d.pending > 0){
+      L.push(row('⏳ Pendientes:', d.pending+' por retornar'));
+      var acum = retornados.reduce(function(s,x){ return s+(x.subtotal||0); }, 0);
+      L.push(sep('-'));
+      L.push(row('💰 Acumulado:', fM(acum)));
+    } else {
+      L.push(sep('='));
+      if(r.discount && r.discount > 0){
+        L.push(row('   Subtotal:', fM(r.totalBefore||r.total)));
+        L.push(row('   ⭐ VIP -'+r.vipDiscount+'%:', '-'+fM(r.discount)));
+        L.push(sep('='));
+        L.push(row('💰 TOTAL VIP A PAGAR:', fM(r.total)));
+      } else {
+        L.push(row('💰 TOTAL A PAGAR:', fM(r.total)));
+      }
+    }
   }
 
   L.push(sep('='));
