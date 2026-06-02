@@ -1736,6 +1736,36 @@ function _fbApplySnap(k, raw){
   try{
     if(raw===null) return;
     var val=_fbNormalize(raw);
+    // For rentals: merge scooterDetails so a stale Firebase snapshot can never roll back
+    // returns that were already processed locally (e.g. after reconnect).
+    if(k==='sr_rentals' && Array.isArray(val) && Array.isArray(_fbCache[k])){
+      var localRentals=_fbCache[k];
+      val=val.map(function(inc){
+        var loc=localRentals.find(function(r){return r.id===inc.id;});
+        if(!loc) return inc;
+        // Merge at scooterDetail level: keep whichever copy of each scooter has returnTime
+        var incSds=inc.scooterDetails||[];
+        var locSds=loc.scooterDetails||[];
+        var merged=incSds.map(function(incSd){
+          var locSd=locSds.find(function(s){return s.code===incSd.code;});
+          if(!locSd) return incSd;
+          // Local has returnTime but incoming doesn't → local is ahead, keep local
+          if(locSd.returnTime&&!incSd.returnTime) return locSd;
+          return incSd;
+        });
+        // If local rental is already closed, preserve its computed fields
+        var allMergedDone=merged.length===(inc.qty||0)&&merged.every(function(s){return s.returnTime;});
+        return Object.assign({},inc,{
+          scooterDetails:merged,
+          status:allMergedDone?'returned':(inc.status||loc.status),
+          returnTime:loc.returnTime||inc.returnTime||null,
+          total:loc.total||inc.total||null,
+          totalBefore:loc.totalBefore||inc.totalBefore||null,
+          discount:loc.discount!=null?loc.discount:inc.discount,
+          cobroCode:loc.cobroCode||inc.cobroCode||null
+        });
+      });
+    }
     _fbCache[k]=val;
     try{ localStorage.setItem(k,JSON.stringify(val)); }catch(e){}
     _fbOnUpdate(k);
