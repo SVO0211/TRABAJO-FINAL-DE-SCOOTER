@@ -3186,8 +3186,14 @@ function processScan(){
       if(r.isVIP&&r.discount>0)writeLog('vip','⭐ VIP: '+r.clientName+' -'+fM(r.discount)+' ('+r.vipDiscount+'%) cobrado por '+(r.returnBy||CU.username),{id:r.id});
       toast('✔ Renta cerrada: '+r.clientName);updateCajaBadge();
       setTimeout(function(){
+        // Ticket individual de retorno → al cerrar, factura final automática → al cerrar, cobro WhatsApp
         jalOpen('retorno',_retData,function(){
-          setTimeout(function(){showTicket(r);showClientConf(r);},200);
+          setTimeout(function(){
+            _currentTicketRental=r;
+            jalOpen('cobro',r,function(){
+              showClientConf(r);
+            });
+          },200);
         });
       },350);
     } else {
