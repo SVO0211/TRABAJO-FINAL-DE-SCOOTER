@@ -3166,7 +3166,7 @@ function processScan(){
     const mins=Math.ceil((now-exitTs)/60000);const subtotal=calcSubtotal(mins,r.stand);
     r.scooterDetails[sdIdx]={...sd,exitTime:exitTs,returnTime:now,mins,subtotal,returnedBy:CU.username};
     sc.status='available';scooters[scIdx]=sc;
-    const allDone=r.scooterDetails.length===r.qty&&r.scooterDetails.every(s=>s.returnTime);
+    const allDone=r.scooterDetails.length===Number(r.qty)&&r.scooterDetails.every(s=>s.returnTime);
     if(allDone){r.returnTime=now;r.returnBy=CU.username;r.totalBefore=r.scooterDetails.reduce((s,x)=>s+(x.subtotal||0),0);
       if(r.vipDiscount&&r.vipDiscount>0){r.discount=Math.round(r.totalBefore*(r.vipDiscount/100));r.total=r.totalBefore-r.discount;}
       else{r.total=r.totalBefore;r.discount=0;}
@@ -3185,16 +3185,28 @@ function processScan(){
       writeLog('close','🔒 Renta #'+r.consecutivo+' cerrada: '+r.clientName+' · '+r.stand+' · '+fM(r.total)+(r.isVIP?' (VIP -'+fM(r.discount)+')':''),{id:r.id,total:r.total});
       if(r.isVIP&&r.discount>0)writeLog('vip','⭐ VIP: '+r.clientName+' -'+fM(r.discount)+' ('+r.vipDiscount+'%) cobrado por '+(r.returnBy||CU.username),{id:r.id});
       toast('✔ Renta cerrada: '+r.clientName);updateCajaBadge();
+      // Mostrar ticket individual y luego factura final directamente
       setTimeout(function(){
-        // Ticket individual de retorno → al cerrar, factura final automática → al cerrar, cobro WhatsApp
         jalOpen('retorno',_retData,function(){
+          // Tras cerrar el ticket individual → factura final con encabezado comercial
           setTimeout(function(){
             _currentTicketRental=r;
-            jalOpen('cobro',r,function(){
-              showClientConf(r);
-            });
-          },200);
+            jalOpen('cobro',r,function(){ showClientConf(r); });
+          },150);
         });
+        // Red de seguridad: si el modal retorno no se cierra manualmente en 12s, abrir cobro de todas formas
+        var _cobroFired=false;
+        var _origOnClose=_jalOnClose;
+        _jalOnClose=function(){
+          _cobroFired=true;
+          if(_origOnClose)_origOnClose();
+        };
+        setTimeout(function(){
+          if(!_cobroFired){
+            _currentTicketRental=r;
+            jalOpen('cobro',r,function(){ showClientConf(r); });
+          }
+        },12000);
       },350);
     } else {
       setTimeout(function(){jalOpen('retorno',_retData);},300);
@@ -3714,7 +3726,10 @@ function renderTicketsHistory(){
 }
 function showTicketFromId(id){
   const r=(LS.get('sr_rentals')||[]).find(x=>x.id===id);
-  if(r)showTicket(r);
+  if(!r)return;
+  _currentTicketRental=r;
+  if(typeof jalOpen==='function') jalOpen('cobro',r);
+  else showTicket(r);
 }
 
 // ══ CLIENTES ══
