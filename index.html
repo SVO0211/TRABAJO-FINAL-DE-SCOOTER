@@ -3178,7 +3178,9 @@ function processScan(){
     const pending=r.scooterDetails.filter(s=>!s.returnTime).length;
     showSR('success','✔ Retorno: '+sc.code+' · '+mins+'min · '+fM(subtotal)+(allDone?' · ¡Renta cerrada!':pending>0?' · Quedan '+pending+' sc.':''));
     document.getElementById('scan-code').value='';refreshScanSelect();renderScPanel();refreshDashboard();
-    const _retData={r:r,sc:sc,sd:r.scooterDetails[sdIdx],mins:mins,subtotal:subtotal,pending:pending};
+    // Capture updated sd explicitly as fallback in case array reference is stale
+    const _updatedSd=r.scooterDetails[sdIdx]||{...sd,exitTime:exitTs,returnTime:now,mins,subtotal,returnedBy:CU.username};
+    const _retData={r:r,sc:sc,sd:_updatedSd,mins:mins,subtotal:subtotal,pending:pending};
     if(allDone){
       writeLog('close','🔒 Renta #'+r.consecutivo+' cerrada: '+r.clientName+' · '+r.stand+' · '+fM(r.total)+(r.isVIP?' (VIP -'+fM(r.discount)+')':''),{id:r.id,total:r.total});
       if(r.isVIP&&r.discount>0)writeLog('vip','⭐ VIP: '+r.clientName+' -'+fM(r.discount)+' ('+r.vipDiscount+'%) cobrado por '+(r.returnBy||CU.username),{id:r.id});
@@ -7852,7 +7854,10 @@ function jalOpen(type, data, onClose){
   _jalOnClose = onClose || null;
   // Preview
   var prev = document.getElementById('jal-preview');
-  if(prev) prev.textContent = jalBuildText(type, data);
+  if(prev){
+    try{ prev.textContent = jalBuildText(type, data); }
+    catch(e){ prev.textContent = '[Error al generar ticket: '+e.message+']'; console.error('[JAL] jalBuildText error:', e, 'data:', data); }
+  }
   // Mostrar BT sólo si Android + Web Bluetooth disponible
   var btBtn = document.getElementById('jal-bt-btn');
   if(btBtn) btBtn.style.display = ('bluetooth' in navigator && /Android/i.test(navigator.userAgent)) ? 'block':'none';
@@ -7894,6 +7899,14 @@ function jalBuildText(type, data){
   // ── TICKET DE COBRO ──
   if(type === 'cobro'){
     var r = data;
+    // Encabezado comercial al inicio del ticket (unshift = inserta antes del header compartido)
+    L.unshift(sep('='));
+    L.unshift(center('Tel: 3128773276'));
+    L.unshift(center('NIT: 70630689-1'));
+    L.unshift(center('SCOOTER S.V.S'));
+    L.unshift(center('TERCER PISO'));
+    L.unshift(center('Etapa: '+(r.stand||'—')));
+    L.unshift(center('PARQUE COMERCIAL FLORIDA'));
     L.push(center('💵 TICKET DE COBRO'));
     L.push(center('Renta #'+r.consecutivo));
     L.push(sep('-'));
@@ -8028,6 +8041,7 @@ function jalBuildText(type, data){
   // ── RETORNO INDIVIDUAL DE SCOOTER ──
   else if(type === 'retorno'){
     var d = data; var r = d.r;
+    var _sd = d.sd || {};  // guard against null/undefined sd
     var allDoneLocal = d.pending === 0;
     L.push(center(allDoneLocal ? '✅ RETORNO — RENTA CERRADA' : '🔄 TICKET DE RETORNO'));
     L.push(center('Renta #'+(r.consecutivo||'—')));
@@ -8037,9 +8051,9 @@ function jalBuildText(type, data){
     if(r.clientPhone) L.push('📞 Tel: '+r.clientPhone);
     L.push('📍 Stand: '+(r.stand||'—'));
     L.push(sep('-'));
-    L.push(row('🛵 Scooter:', d.sd.code));
-    L.push(row('⏰ Salida:', fT(d.sd.exitTime)));
-    L.push(row('🔄 Retorno:', fT(d.sd.returnTime)));
+    L.push(row('🛵 Scooter:', _sd.code||d.sc&&d.sc.code||'—'));
+    L.push(row('⏰ Salida:', fT(_sd.exitTime)));
+    L.push(row('🔄 Retorno:', fT(_sd.returnTime)));
     L.push(row('⏱ Tiempo:', d.mins+'min'));
     L.push(row('💵 Cobro este sc.:', fM(d.subtotal)));
     L.push(sep('-'));
