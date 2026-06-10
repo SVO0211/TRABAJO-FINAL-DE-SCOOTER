@@ -703,10 +703,11 @@ html[data-theme="light"] .field select{
 html[data-theme="light"] .field select option{background:var(--card);color:var(--text);}
 html[data-theme="light"] tr:hover td{background:rgba(0,100,180,.04);}
 html[data-theme="light"] #theme-toggle-btn{
-  background:rgba(255,255,255,.7);border-color:rgba(0,100,180,.3);
-  box-shadow:0 2px 12px rgba(0,100,180,.15);
+  background:#0077cc;
+  box-shadow:0 4px 18px rgba(0,100,180,.45);
 }
-#theme-toggle-btn:hover{transform:scale(1.1);box-shadow:0 4px 18px rgba(0,0,0,.4);}
+#theme-toggle-btn:hover{transform:scale(1.1);}
+#theme-toggle-btn:active{transform:scale(.93);}
 </style>
 <script>
 /* Aplica el tema guardado antes de renderizar para evitar parpadeo */
@@ -717,12 +718,13 @@ html[data-theme="light"] #theme-toggle-btn{
 
 <!-- BOTÓN FLOTANTE TEMA DÍA/NOCHE — siempre visible -->
 <button id="theme-toggle-btn" onclick="toggleTheme()" title="Modo claro / oscuro"
-  style="position:fixed;top:10px;right:10px;z-index:9999;
-         background:rgba(0,0,0,.35);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-         border:1.5px solid rgba(255,255,255,.25);border-radius:50%;
-         width:40px;height:40px;font-size:1.15rem;cursor:pointer;
+  style="position:fixed;bottom:82px;right:14px;z-index:9999;
+         background:#00aaff;color:#fff;
+         border:none;border-radius:50%;
+         width:46px;height:46px;font-size:1.3rem;cursor:pointer;
          display:flex;align-items:center;justify-content:center;
-         transition:all .2s;box-shadow:0 2px 12px rgba(0,0,0,.3);">☀️</button>
+         box-shadow:0 4px 18px rgba(0,170,255,.55);
+         transition:transform .2s,box-shadow .2s;">☀️</button>
 
 <!-- LOGIN -->
 <div id="view-login">
