@@ -667,7 +667,55 @@ tr:hover td{background:rgba(0,170,255,.03);}
 .check-row{display:flex;align-items:center;gap:.55rem;padding:.55rem .75rem;background:rgba(0,170,255,.05);border:1px solid var(--border);border-radius:10px;cursor:default;font-size:.84rem;}
 .check-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;}
 .check-row.accepted{border-color:rgba(0,200,80,.5);background:rgba(0,200,80,.07);color:#00c850;}
+
+/* ═══ MODO CLARO (DÍA) ═══ */
+html[data-theme="light"]{
+  --bg:#f0f7ff; --bg2:#e3f0fc; --bg3:#d3e8f8; --card:#ffffff; --border:#aac8e8;
+  --accent:#0077cc; --accent2:#005599; --accent3:#cc2222; --amber:#cc8800;
+  --text:#0a1a2e; --muted:#4d6e99;
+  --glow:0 2px 16px rgba(0,100,180,.14);
+}
+html[data-theme="light"] body{
+  background:var(--bg);background-color:var(--bg);color:var(--text);
+}
+html[data-theme="light"] #view-login{
+  background:radial-gradient(ellipse at 30% 10%,#cce4ff 0%,transparent 50%),
+             radial-gradient(ellipse at 70% 90%,#d8ecff 0%,transparent 50%),var(--bg);
+}
+html[data-theme="light"] .topbar{
+  box-shadow:0 2px 16px rgba(0,100,180,.15);
+}
+html[data-theme="light"] .bottom-nav{
+  box-shadow:0 -2px 16px rgba(0,100,180,.10);
+}
+html[data-theme="light"] .bn-more-menu{
+  border-top:1px solid var(--border);
+}
+html[data-theme="light"] #vkb{
+  background:var(--bg2);box-shadow:0 -4px 20px rgba(0,100,180,.15);
+}
+html[data-theme="light"] .vkb-k{
+  background:var(--bg3);border-color:var(--border);color:var(--text);
+}
+html[data-theme="light"] .field select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%230077cc' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+html[data-theme="light"] .field select option{background:var(--card);color:var(--text);}
+html[data-theme="light"] tr:hover td{background:rgba(0,100,180,.04);}
+html[data-theme="light"] #theme-toggle-btn{color:var(--amber);}
+
+/* Botón toggle tema */
+#theme-toggle-btn{
+  background:transparent;border:1px solid var(--border);color:var(--muted);
+  border-radius:8px;padding:.3rem .55rem;font-size:1rem;cursor:pointer;
+  line-height:1;transition:all .15s;flex-shrink:0;
+}
+#theme-toggle-btn:hover{border-color:var(--accent);color:var(--accent);}
 </style>
+<script>
+/* Aplica el tema guardado antes de renderizar para evitar parpadeo */
+(function(){try{var t=localStorage.getItem('sr_theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}}());
+</script>
 </head>
 <body>
 
@@ -699,6 +747,7 @@ tr:hover td{background:rgba(0,170,255,.03);}
     <span id="topbar-stand" style="font-size:.75rem;color:var(--muted);white-space:nowrap;overflow:hidden;max-width:110px;text-overflow:ellipsis"></span>
     <button id="sync-btn" onclick="_fbForceSync()" title="Sincronizar con la nube" style="background:transparent;border:none;cursor:pointer;font-size:1.1rem;padding:.2rem .4rem;border-radius:6px;line-height:1;flex-shrink:0;display:none">🔄</button>
     <span id="sync-dot" title="Estado Firebase" style="width:9px;height:9px;border-radius:50%;background:#888;flex-shrink:0;display:none"></span>
+    <button id="theme-toggle-btn" onclick="toggleTheme()" title="Modo claro / oscuro">☀️</button>
     <button class="logout-btn" onclick="doLogout()">Salir</button>
   </div>
 
@@ -1611,6 +1660,20 @@ if(typeof Promise==='undefined'){console.warn('Promise not supported - some feat
 if(typeof NodeList!=='undefined'&&NodeList.prototype&&!NodeList.prototype.forEach){NodeList.prototype.forEach=Array.prototype.forEach;}
 })();
 // ═══ END POLYFILLS ═══
+
+// ══ TEMA DÍA / NOCHE ══
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  var btn=document.getElementById('theme-toggle-btn');
+  if(btn)btn.textContent=t==='light'?'🌙':'☀️';
+  // Actualizar meta theme-color
+  var meta=document.querySelector('meta[name="theme-color"]');
+  if(meta)meta.content=t==='light'?'#0077cc':'#00aaff';
+  try{localStorage.setItem('sr_theme',t);}catch(e){}
+}
+function toggleTheme(){
+  applyTheme(document.documentElement.getAttribute('data-theme')==='light'?'dark':'light');
+}
 
 // ══ STORAGE ══
 // ══ FIREBASE CONFIG ══
@@ -7640,6 +7703,8 @@ function completarLogin(found, stand){
   document.getElementById('view-app').style.flexDirection='column';
   document.getElementById('topbar-user').textContent=CU.username;
   document.getElementById('topbar-stand').textContent=CU.stand!=='Todos'?'📍 '+CU.stand:'📍 Todos';
+  // Sincronizar ícono del botón con el tema actual
+  (function(){try{var t=localStorage.getItem('sr_theme')||'dark';applyTheme(t);}catch(e){}}());
 
   var isG=CU.role==='gerente';
   var isOp=CU.role==='operativo';
