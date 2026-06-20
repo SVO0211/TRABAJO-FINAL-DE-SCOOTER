@@ -703,11 +703,48 @@ html[data-theme="light"] .field select{
 html[data-theme="light"] .field select option{background:var(--card);color:var(--text);}
 html[data-theme="light"] tr:hover td{background:rgba(0,100,180,.04);}
 html[data-theme="light"] #theme-toggle-btn{
-  background:#0077cc;
-  box-shadow:0 4px 18px rgba(0,100,180,.45);
+  background:var(--card);
+  box-shadow:0 2px 8px rgba(0,80,160,.15);
 }
-#theme-toggle-btn:hover{transform:scale(1.1);}
-#theme-toggle-btn:active{transform:scale(.93);}
+#theme-toggle-btn:hover{border-color:var(--accent)!important;color:var(--accent)!important;}
+#theme-toggle-btn:active{opacity:.75;}
+@media(min-width:768px){
+  #theme-toggle-btn{bottom:1.25rem!important;right:1.25rem!important;}
+}
+
+/* ═══ VKB LIGHT MODE ═══ */
+html[data-theme="light"] #vkb-num .vkb-nk{
+  background:var(--bg3);border-color:var(--border);color:var(--text);
+}
+html[data-theme="light"] #vkb-num .vkb-nk.vkb-sp{background:var(--bg2);color:var(--accent);}
+html[data-theme="light"] #vkb-num .vkb-nk.vkb-back{background:rgba(204,34,34,.08);color:#bb2222;border-color:rgba(204,34,34,.2);}
+html[data-theme="light"] #vkb-num .vkb-nk.vkb-enter{background:rgba(0,100,180,.1);color:var(--accent);border-color:rgba(0,100,180,.25);}
+html[data-theme="light"] .vkb-back{background:rgba(204,34,34,.08)!important;color:#bb2222!important;border-color:rgba(204,34,34,.2)!important;}
+html[data-theme="light"] .vkb-enter{background:rgba(0,100,180,.1)!important;color:var(--accent)!important;border-color:rgba(0,100,180,.25)!important;}
+html[data-theme="light"] .vkb-sp{background:var(--bg2)!important;color:var(--accent)!important;}
+html[data-theme="light"] .vkb-close-k{color:#bb2222!important;background:rgba(204,34,34,.07)!important;border-color:rgba(204,34,34,.18)!important;}
+html[data-theme="light"] .vkb-space{color:var(--muted)!important;}
+
+/* ═══ MOBILE RESPONSIVE FIXES ═══ */
+.content-area{touch-action:pan-y pinch-zoom;}
+input,textarea{-webkit-user-select:text!important;-moz-user-select:text!important;-ms-user-select:text!important;user-select:text!important;}
+@media(max-width:540px){
+  .form-row{grid-template-columns:1fr!important;}
+  .perfil-stats-strip{grid-template-columns:repeat(2,1fr)!important;}
+  .scanner-wrap{grid-template-columns:1fr!important;}
+  .stat-card .s-value{font-size:1.45rem;}
+  .page-title{font-size:1.15rem;}
+  .modal-actions{flex-direction:column;}
+  .modal-actions .btn{flex:none;}
+  .form-actions{flex-direction:column;}
+  #users-list{grid-template-columns:1fr!important;}
+  .dash-filter-row select{min-width:120px;font-size:.8rem;}
+  .tab{font-size:.75rem;padding:.45rem .3rem;}
+}
+@media(max-width:380px){
+  .bn-item{font-size:.58rem;}
+  .stat-card{padding:.75rem .8rem;}
+}
 </style>
 <script>
 /* Aplica el tema guardado antes de renderizar para evitar parpadeo */
@@ -718,13 +755,14 @@ html[data-theme="light"] #theme-toggle-btn{
 
 <!-- BOTÓN FLOTANTE TEMA DÍA/NOCHE — siempre visible -->
 <button id="theme-toggle-btn" onclick="toggleTheme()" title="Modo claro / oscuro"
-  style="position:fixed;top:68px;right:12px;z-index:99999;
-         background:#00aaff;color:#fff;
-         border:none;border-radius:24px;
-         padding:6px 12px;font-size:1.1rem;cursor:pointer;
-         display:flex;align-items:center;gap:5px;
-         box-shadow:0 4px 20px rgba(0,170,255,.7);
-         transition:transform .15s;white-space:nowrap;font-family:sans-serif;font-weight:700;">☀️ Tema</button>
+  style="position:fixed;bottom:calc(var(--bottomnav-h,64px) + var(--safe-bottom,0px) + .65rem);right:.75rem;z-index:150;
+         background:var(--card);color:var(--muted);
+         border:1px solid var(--border);border-radius:8px;
+         width:36px;height:36px;font-size:1rem;cursor:pointer;
+         display:flex;align-items:center;justify-content:center;
+         box-shadow:0 2px 8px rgba(0,0,0,.2);
+         transition:border-color .2s,color .2s;
+         touch-action:manipulation;-webkit-tap-highlight-color:transparent;">◐</button>
 
 <!-- LOGIN -->
 <div id="view-login">
@@ -1671,7 +1709,7 @@ if(typeof NodeList!=='undefined'&&NodeList.prototype&&!NodeList.prototype.forEac
 function applyTheme(t){
   document.documentElement.setAttribute('data-theme',t);
   var btn=document.getElementById('theme-toggle-btn');
-  if(btn)btn.textContent=t==='light'?'🌙':'☀️';
+  if(btn)btn.textContent=t==='light'?'◑':'◐';
   // Actualizar meta theme-color
   var meta=document.querySelector('meta[name="theme-color"]');
   if(meta)meta.content=t==='light'?'#0077cc':'#00aaff';
