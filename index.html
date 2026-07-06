@@ -1300,6 +1300,10 @@ input,textarea{-webkit-user-select:text!important;-moz-user-select:text!importan
       <!-- TARIFAS -->
       <div class="view-section" id="view-pricing">
         <div class="page-title">Tarifas<div class="sub">Precio por minuto / scooter</div></div>
+        <div id="pricing-stand-picker" style="max-width:860px;margin:0 auto 1rem auto;display:none">
+          <label style="font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:1px">Elegir stand</label>
+          <select id="pricing-stand-select" onchange="renderPricing()" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.75rem .9rem;color:var(--text);font-family:var(--font);font-size:.95rem;outline:none;margin-top:.35rem"></select>
+        </div>
         <div id="pricing-grid"></div>
         <div style="margin-top:1rem;padding:.85rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:12px;font-size:.82rem;color:var(--muted);line-height:1.6">
           <b style="color:var(--accent)">Fórmula:</b> Total = Precio/min × Minutos × Scooters<br>
@@ -3550,18 +3554,41 @@ function exportData(){
 function renderPricing(){
   var db=LS.get('sr_pricing')||{};
   var isG=CU&&CU.role==='gerente';
-  var stands=isG?getStands():[myStand()];
+  var allStands=getStands();
+  var picker=document.getElementById('pricing-stand-picker');
+  var sel=document.getElementById('pricing-stand-select');
+  if(allStands.length===0){
+    picker.style.display='none';
+    document.getElementById('pricing-grid').innerHTML='<div style="grid-column:1/-1;text-align:center;padding:2rem 1rem;color:var(--muted);font-size:.85rem">No hay stands creados todavía. Ve a <b>Stands</b> y crea al menos uno para poder configurar sus tarifas.</div>';
+    return;
+  }
+  var stands;
+  if(isG){
+    picker.style.display='block';
+    var cur=sel.value;
+    sel.innerHTML=allStands.map(function(s){return '<option value="'+s+'">'+s+'</option>';}).join('');
+    if(cur&&allStands.indexOf(cur)!==-1) sel.value=cur;
+    stands=[sel.value||allStands[0]];
+  } else {
+    picker.style.display='none';
+    stands=[myStand()];
+  }
   document.getElementById('pricing-grid').innerHTML=stands.map(function(s){
     var cfg=db[s];
     if(typeof cfg==='number') cfg={type:'estandar',ppm:cfg};
     if(!cfg) cfg={type:'estandar',ppm:1000};
     var type=cfg.type||'estandar';
     var ppm=cfg.ppm||1000;
+    var t10=cfg.t10||20000,t15=cfg.t15||25000,t20=cfg.t20||30000,extra=cfg.extra||1000;
     var sid=s.replace(/ /g,'_');
     var isEsp=type==='especial';
+    var isNew=type==='nueva';
+    var typeColor=isEsp?'var(--amber)':(isNew?'#33cc66':'var(--accent)');
 
     var preview=isEsp
       ?'0-10min: <b style="color:var(--amber)">'+fM(15000)+'</b> · 15min: <b style="color:var(--amber)">'+fM(18000)+'</b> · 20min: <b style="color:var(--amber)">'+fM(20000)+'</b> · 30min: <b style="color:var(--amber)">'+fM(28000)+'</b> · luego +<b style="color:var(--amber)">'+fM(800)+'</b>/min'
+      :isNew
+      ?'0-10min: <b style="color:#33cc66">'+fM(t10)+'</b> · 15min: <b style="color:#33cc66">'+fM(t15)+'</b> · 20min: <b style="color:#33cc66">'+fM(t20)+'</b> · luego +<b style="color:#33cc66">'+fM(extra)+'</b>/min'
       :'0-10min: <b style="color:var(--accent)">'+fM(15000)+'</b> fijo · luego +<b style="color:var(--accent)">'+fM(ppm)+'</b>/min';
 
     var ex25=fM(calcSubtotal(25,s));
@@ -3569,10 +3596,21 @@ function renderPricing(){
 
     var editRow='';
     if(isG){
-      var btnE='<button data-stand="'+s+'" data-type="estandar" onclick="setPricingType(this.dataset.stand,this.dataset.type)" style="flex:1;padding:.5rem;border-radius:8px;border:1.5px solid '+(isEsp?'var(--border)':'var(--accent)')+';background:'+(isEsp?'var(--bg3)':'rgba(0,170,255,.1)')+';color:'+(isEsp?'var(--muted)':'var(--accent)')+';font-size:.78rem;font-weight:700;cursor:pointer">\u26a1 Est\u00e1ndar</button>';
-      var btnEsp='<button data-stand="'+s+'" data-type="especial" onclick="setPricingType(this.dataset.stand,this.dataset.type)" style="flex:1;padding:.5rem;border-radius:8px;border:1.5px solid '+(isEsp?'var(--amber)':'var(--border)')+';background:'+(isEsp?'rgba(255,170,0,.1)':'var(--bg3)')+';color:'+(isEsp?'var(--amber)':'var(--muted)')+';font-size:.78rem;font-weight:700;cursor:pointer">\🎯 Especial</button>';
+      var btnE='<button data-stand="'+s+'" data-type="estandar" onclick="setPricingType(this.dataset.stand,this.dataset.type)" style="flex:1;padding:.5rem;border-radius:8px;border:1.5px solid '+(type==='estandar'?'var(--accent)':'var(--border)')+';background:'+(type==='estandar'?'rgba(0,170,255,.1)':'var(--bg3)')+';color:'+(type==='estandar'?'var(--accent)':'var(--muted)')+';font-size:.78rem;font-weight:700;cursor:pointer">⚡ Estándar</button>';
+      var btnEsp='<button data-stand="'+s+'" data-type="especial" onclick="setPricingType(this.dataset.stand,this.dataset.type)" style="flex:1;padding:.5rem;border-radius:8px;border:1.5px solid '+(isEsp?'var(--amber)':'var(--border)')+';background:'+(isEsp?'rgba(255,170,0,.1)':'var(--bg3)')+';color:'+(isEsp?'var(--amber)':'var(--muted)')+';font-size:.78rem;font-weight:700;cursor:pointer">🎯 Especial</button>';
+      var btnNew='<button data-stand="'+s+'" data-type="nueva" onclick="setPricingType(this.dataset.stand,this.dataset.type)" style="flex:1;padding:.5rem;border-radius:8px;border:1.5px solid '+(isNew?'#33cc66':'var(--border)')+';background:'+(isNew?'rgba(51,204,102,.1)':'var(--bg3)')+';color:'+(isNew?'#33cc66':'var(--muted)')+';font-size:.78rem;font-weight:700;cursor:pointer">🆕 Nueva</button>';
       var ppmInput=isEsp
-        ?'<div style="font-size:.75rem;color:var(--amber);padding:.35rem .6rem;background:rgba(255,170,0,.08);border-radius:6px;margin-top:.4rem">Tarifa especial fija \u2014 sin configuraci\u00f3n adicional</div>'
+        ?'<div style="font-size:.75rem;color:var(--amber);padding:.35rem .6rem;background:rgba(255,170,0,.08);border-radius:6px;margin-top:.4rem">Tarifa especial fija — sin configuración adicional</div>'
+        :isNew
+        ?'<div style="margin-top:.5rem">'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">'
+            +'<div><label style="font-size:.7rem;color:var(--muted)">10 min</label><input type="number" id="pr-t10-'+sid+'" value="'+t10+'" min="0" step="500" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
+            +'<div><label style="font-size:.7rem;color:var(--muted)">15 min</label><input type="number" id="pr-t15-'+sid+'" value="'+t15+'" min="0" step="500" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
+            +'<div><label style="font-size:.7rem;color:var(--muted)">20 min</label><input type="number" id="pr-t20-'+sid+'" value="'+t20+'" min="0" step="500" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
+            +'<div><label style="font-size:.7rem;color:var(--muted)">Min. adicional</label><input type="number" id="pr-extra-'+sid+'" value="'+extra+'" min="0" step="100" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
+          +'</div>'
+          +'<button data-stand="'+s+'" onclick="savePriceNueva(this.dataset.stand)" class="btn btn-sm" style="min-height:40px;width:100%;margin-top:.5rem">Guardar</button>'
+        +'</div>'
         :'<div style="display:flex;align-items:center;gap:.5rem;margin-top:.4rem">'
           +'<input type="number" id="pr-'+sid+'" value="'+ppm+'" min="100" step="100" inputmode="numeric" style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:var(--mono)"/>'
           +'<span style="color:var(--muted);font-size:.82rem">$/min extra</span>'
@@ -3580,22 +3618,22 @@ function renderPricing(){
         +'</div>';
       editRow='<div style="margin-top:.75rem">'
         +'<div style="font-size:.72rem;color:var(--muted);font-weight:600;margin-bottom:.35rem">Tipo de tarifa:</div>'
-        +'<div style="display:flex;gap:.5rem">'+btnE+btnEsp+'</div>'
+        +'<div style="display:flex;gap:.5rem">'+btnE+btnEsp+btnNew+'</div>'
         +ppmInput
         +'</div>';
     } else {
-      editRow='<div style="font-size:.75rem;color:var(--muted);padding:.35rem 0">\🔒 Solo el gerente puede modificar tarifas</div>';
+      editRow='<div style="font-size:.75rem;color:var(--muted);padding:.35rem 0">🔒 Solo el gerente puede modificar tarifas</div>';
     }
 
     return '<div class="pricing-stand-card">'
       +'<div class="ps-header">'
         +'<div><div class="ps-title">'+s+'</div>'
-        +'<div class="ps-sub">'+(isEsp?'Tarifa especial':'Tarifa est\u00e1ndar')+'</div></div>'
-        +'<div style="text-align:right"><div class="ps-current" style="color:'+(isEsp?'var(--amber)':'var(--accent)')+'">'+( isEsp?'Especial':fM(ppm)+'/min')+'</div></div>'
+        +'<div class="ps-sub">'+(isEsp?'Tarifa especial':(isNew?'Tarifa nueva':'Tarifa estándar'))+'</div></div>'
+        +'<div style="text-align:right"><div class="ps-current" style="color:'+typeColor+'">'+( isEsp?'Especial':(isNew?'Nueva':fM(ppm)+'/min'))+'</div></div>'
       +'</div>'
       +'<div style="font-size:.78rem;color:var(--muted);margin:.5rem 0;line-height:1.8">'+preview+'</div>'
       +editRow
-      +'<div style="margin-top:.65rem;font-size:.72rem;color:var(--muted)">Ej: 25min = <b style="color:var(--accent)">'+ex25+'</b> \u00b7 45min = <b style="color:var(--accent)">'+ex45+'</b></div>'
+      +'<div style="margin-top:.65rem;font-size:.72rem;color:var(--muted)">Ej: 25min = <b style="color:var(--accent)">'+ex25+'</b> · 45min = <b style="color:var(--accent)">'+ex45+'</b></div>'
     +'</div>';
   }).join('');
 }
@@ -5721,6 +5759,7 @@ function purgePastRestDays(){
 // ══ MOTOR DE PRECIOS ══
 // Tipo 'estandar': 0-10min=$15.000 fijo, luego +$1.000/min
 // Tipo 'especial':  0-10=$15.000, 15=$18.000, 20=$20.000, 30=$28.000, luego +$800/min
+// Tipo 'nueva':     0-10=$20.000, 15=$25.000, 20=$30.000, luego +$1.000/min (editable)
 function calcSubtotal(mins, stand){
   var db=LS.get('sr_pricing')||{};
   var cfg=db[stand];
@@ -5734,6 +5773,13 @@ function calcSubtotal(mins, stand){
     if(mins<=30) return 28000;
     return 28000+(mins-30)*800;
   }
+  if(type==='nueva'){
+    var t10=cfg.t10||20000,t15=cfg.t15||25000,t20=cfg.t20||30000,extra=cfg.extra||1000;
+    if(mins<=10) return t10;
+    if(mins<=15) return t15;
+    if(mins<=20) return t20;
+    return t20+(mins-20)*extra;
+  }
   // Estándar
   if(mins<=10) return 15000;
   var ppm=cfg.ppm||1000;
@@ -5746,6 +5792,7 @@ function getPricingLabel(stand){
   if(typeof cfg==='number') cfg={type:'estandar',ppm:cfg};
   if(!cfg) cfg={type:'estandar',ppm:1000};
   if(cfg.type==='especial') return '0-10min:'+fM(15000)+' · 15:'+fM(18000)+' · 20:'+fM(20000)+' · 30:'+fM(28000)+' · +'+fM(800)+'/min extra';
+  if(cfg.type==='nueva') return '0-10min:'+fM(cfg.t10||20000)+' · 15:'+fM(cfg.t15||25000)+' · 20:'+fM(cfg.t20||30000)+' · +'+fM(cfg.extra||1000)+'/min extra';
   return '0-10min:'+fM(15000)+' fijo · +'+fM(cfg.ppm||1000)+'/min extra';
 }
 
@@ -5755,9 +5802,31 @@ function setPricingType(stand, type){
   var cfg=db[stand]||{type:'estandar',ppm:1000};
   if(typeof cfg==='number') cfg={type:'estandar',ppm:cfg};
   cfg.type=type;
+  if(type==='nueva'){
+    cfg.t10=cfg.t10||20000;cfg.t15=cfg.t15||25000;cfg.t20=cfg.t20||30000;cfg.extra=cfg.extra||1000;
+  }
   db[stand]=cfg;
   LS.set('sr_pricing',db);
-  toast('\u2714 '+stand+': tarifa '+(type==='especial'?'Especial (escalonada)':'Est\u00e1ndar')+' activada');
+  var label=type==='especial'?'Especial (escalonada)':(type==='nueva'?'Nueva (escalonada)':'Estándar');
+  toast('✔ '+stand+': tarifa '+label+' activada');
+  renderPricing();
+}
+
+function savePriceNueva(stand){
+  if(!CU||CU.role!=='gerente'){toast('Solo el gerente puede modificar tarifas');return;}
+  var sid=stand.replace(/ /g,'_');
+  var t10=parseFloat(document.getElementById('pr-t10-'+sid).value);
+  var t15=parseFloat(document.getElementById('pr-t15-'+sid).value);
+  var t20=parseFloat(document.getElementById('pr-t20-'+sid).value);
+  var extra=parseFloat(document.getElementById('pr-extra-'+sid).value);
+  if(!t10||!t15||!t20||!extra){toast('Completa todos los valores');return;}
+  var db=LS.get('sr_pricing')||{};
+  var cfg=db[stand]||{type:'nueva'};
+  if(typeof cfg==='number') cfg={type:'nueva'};
+  cfg.type='nueva';cfg.t10=t10;cfg.t15=t15;cfg.t20=t20;cfg.extra=extra;
+  db[stand]=cfg;
+  LS.set('sr_pricing',db);
+  toast('✔ '+stand+': tarifa nueva actualizada');
   renderPricing();
 }
 
