@@ -3582,17 +3582,15 @@ function renderPricing(){
     var isEsp=type==='especial';
     var isNew=type==='nueva';
     var t10=isEsp?(cfg.t10||15000):(cfg.t10||20000);
-    var t15=isEsp?(cfg.t15||18000):(cfg.t15||25000);
-    var t20=isEsp?(cfg.t20||20000):(cfg.t20||30000);
-    var t30=cfg.t30||28000;
     var extra=cfg.extra||1000;
+    var t15ref=t10+5*extra, t20ref=t10+10*extra, t30ref=t10+20*extra;
     var sid=s.replace(/ /g,'_');
     var typeColor=isEsp?'var(--amber)':(isNew?'#33cc66':'var(--accent)');
 
     var preview=isEsp
-      ?'0-10min: <b style="color:var(--amber)">'+fM(t10)+'</b> · 15min: <b style="color:var(--amber)">'+fM(t15)+'</b> · 20min: <b style="color:var(--amber)">'+fM(t20)+'</b> · 30min: <b style="color:var(--amber)">'+fM(t30)+'</b> · luego +<b style="color:var(--amber)">'+fM(extra)+'</b>/min'
+      ?'0-10min: <b style="color:var(--amber)">'+fM(t10)+'</b> · 15min: <b style="color:var(--amber)">'+fM(t15ref)+'</b> · 20min: <b style="color:var(--amber)">'+fM(t20ref)+'</b> · 30min: <b style="color:var(--amber)">'+fM(t30ref)+'</b> · +<b style="color:var(--amber)">'+fM(extra)+'</b>/min desde el min. 11'
       :isNew
-      ?'0-10min: <b style="color:#33cc66">'+fM(t10)+'</b> · 15min: <b style="color:#33cc66">'+fM(t15)+'</b> · 20min: <b style="color:#33cc66">'+fM(t20)+'</b> · luego +<b style="color:#33cc66">'+fM(extra)+'</b>/min'
+      ?'0-10min: <b style="color:#33cc66">'+fM(t10)+'</b> · 15min: <b style="color:#33cc66">'+fM(t15ref)+'</b> · 20min: <b style="color:#33cc66">'+fM(t20ref)+'</b> · +<b style="color:#33cc66">'+fM(extra)+'</b>/min desde el min. 11'
       :'0-10min: <b style="color:var(--accent)">'+fM(15000)+'</b> fijo · luego +<b style="color:var(--accent)">'+fM(ppm)+'</b>/min';
 
     var ex25=fM(calcSubtotal(25,s));
@@ -3603,25 +3601,23 @@ function renderPricing(){
       var btnE='<button data-stand="'+s+'" data-type="estandar" onclick="setPricingType(this.dataset.stand,this.dataset.type)" style="flex:1;padding:.5rem;border-radius:8px;border:1.5px solid '+(type==='estandar'?'var(--accent)':'var(--border)')+';background:'+(type==='estandar'?'rgba(0,170,255,.1)':'var(--bg3)')+';color:'+(type==='estandar'?'var(--accent)':'var(--muted)')+';font-size:.78rem;font-weight:700;cursor:pointer">⚡ Estándar</button>';
       var btnEsp='<button data-stand="'+s+'" data-type="especial" onclick="setPricingType(this.dataset.stand,this.dataset.type)" style="flex:1;padding:.5rem;border-radius:8px;border:1.5px solid '+(isEsp?'var(--amber)':'var(--border)')+';background:'+(isEsp?'rgba(255,170,0,.1)':'var(--bg3)')+';color:'+(isEsp?'var(--amber)':'var(--muted)')+';font-size:.78rem;font-weight:700;cursor:pointer">🎯 Especial</button>';
       var btnNew='<button data-stand="'+s+'" data-type="nueva" onclick="setPricingType(this.dataset.stand,this.dataset.type)" style="flex:1;padding:.5rem;border-radius:8px;border:1.5px solid '+(isNew?'#33cc66':'var(--border)')+';background:'+(isNew?'rgba(51,204,102,.1)':'var(--bg3)')+';color:'+(isNew?'#33cc66':'var(--muted)')+';font-size:.78rem;font-weight:700;cursor:pointer">🆕 Nueva</button>';
+      var refRow='<div style="font-size:.7rem;color:var(--muted);margin-top:.5rem">Referencia (calculada): 15min <b>'+fM(t15ref)+'</b> · 20min <b>'+fM(t20ref)+'</b>'+(isEsp?' · 30min <b>'+fM(t30ref)+'</b>':'')+'</div>';
       var ppmInput=isEsp
         ?'<div style="margin-top:.5rem">'
           +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">'
-            +'<div><label style="font-size:.7rem;color:var(--muted)">10 min</label><input type="number" id="pr-esp-t10-'+sid+'" value="'+t10+'" min="0" step="500" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
-            +'<div><label style="font-size:.7rem;color:var(--muted)">15 min</label><input type="number" id="pr-esp-t15-'+sid+'" value="'+t15+'" min="0" step="500" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
-            +'<div><label style="font-size:.7rem;color:var(--muted)">20 min</label><input type="number" id="pr-esp-t20-'+sid+'" value="'+t20+'" min="0" step="500" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
-            +'<div><label style="font-size:.7rem;color:var(--muted)">30 min</label><input type="number" id="pr-esp-t30-'+sid+'" value="'+t30+'" min="0" step="500" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
-            +'<div style="grid-column:1/-1"><label style="font-size:.7rem;color:var(--muted)">Min. adicional (después de 30)</label><input type="number" id="pr-esp-extra-'+sid+'" value="'+extra+'" min="0" step="100" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
+            +'<div><label style="font-size:.7rem;color:var(--muted)">0-10 min (base)</label><input type="number" id="pr-esp-t10-'+sid+'" value="'+t10+'" min="0" step="500" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
+            +'<div><label style="font-size:.7rem;color:var(--muted)">Min. adicional (desde el 11)</label><input type="number" id="pr-esp-extra-'+sid+'" value="'+extra+'" min="0" step="100" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
           +'</div>'
+          +refRow
           +'<button data-stand="'+s+'" onclick="savePriceEspecial(this.dataset.stand)" class="btn btn-sm" style="min-height:40px;width:100%;margin-top:.5rem">Guardar</button>'
         +'</div>'
         :isNew
         ?'<div style="margin-top:.5rem">'
           +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">'
-            +'<div><label style="font-size:.7rem;color:var(--muted)">10 min</label><input type="number" id="pr-t10-'+sid+'" value="'+t10+'" min="0" step="500" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
-            +'<div><label style="font-size:.7rem;color:var(--muted)">15 min</label><input type="number" id="pr-t15-'+sid+'" value="'+t15+'" min="0" step="500" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
-            +'<div><label style="font-size:.7rem;color:var(--muted)">20 min</label><input type="number" id="pr-t20-'+sid+'" value="'+t20+'" min="0" step="500" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
-            +'<div><label style="font-size:.7rem;color:var(--muted)">Min. adicional</label><input type="number" id="pr-extra-'+sid+'" value="'+extra+'" min="0" step="100" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
+            +'<div><label style="font-size:.7rem;color:var(--muted)">0-10 min (base)</label><input type="number" id="pr-t10-'+sid+'" value="'+t10+'" min="0" step="500" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
+            +'<div><label style="font-size:.7rem;color:var(--muted)">Min. adicional (desde el 11)</label><input type="number" id="pr-extra-'+sid+'" value="'+extra+'" min="0" step="100" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
           +'</div>'
+          +refRow
           +'<button data-stand="'+s+'" onclick="savePriceNueva(this.dataset.stand)" class="btn btn-sm" style="min-height:40px;width:100%;margin-top:.5rem">Guardar</button>'
         +'</div>'
         :'<div style="display:flex;align-items:center;gap:.5rem;margin-top:.4rem">'
@@ -5821,9 +5817,9 @@ function purgePastRestDays(){
 }
 
 // ══ MOTOR DE PRECIOS ══
-// Tipo 'estandar': 0-10min=$15.000 fijo, luego +$/min editable (default $1.000)
-// Tipo 'especial':  0-10=$15.000, 15=$18.000, 20=$20.000, 30=$28.000, luego +$/min editable (default $1.000) — todo editable
-// Tipo 'nueva':     0-10=$20.000, 15=$25.000, 20=$30.000, luego +$1.000/min (editable)
+// Tipo 'estandar': 0-10min=$15.000 fijo, luego +$/min editable (default $1.000), sube parejo desde el min 11
+// Tipo 'especial':  base 0-10min editable (default $15.000), luego +$/min editable (default $1.000) desde el min 11, sube parejo (sin saltos)
+// Tipo 'nueva':     base 0-10min editable (default $20.000), luego +$/min editable (default $1.000) desde el min 11, sube parejo (sin saltos)
 function calcSubtotal(mins, stand){
   var db=LS.get('sr_pricing')||{};
   var cfg=db[stand];
@@ -5831,19 +5827,14 @@ function calcSubtotal(mins, stand){
   if(!cfg) cfg={type:'estandar',ppm:1000};
   var type=cfg.type||'estandar';
   if(type==='especial'){
-    var et10=cfg.t10||15000,et15=cfg.t15||18000,et20=cfg.t20||20000,et30=cfg.t30||28000,eextra=cfg.extra||1000;
+    var et10=cfg.t10||15000,eextra=cfg.extra||1000;
     if(mins<=10) return et10;
-    if(mins<=15) return et15;
-    if(mins<=20) return et20;
-    if(mins<=30) return et30;
-    return et30+(mins-30)*eextra;
+    return et10+(mins-10)*eextra;
   }
   if(type==='nueva'){
-    var t10=cfg.t10||20000,t15=cfg.t15||25000,t20=cfg.t20||30000,extra=cfg.extra||1000;
+    var t10=cfg.t10||20000,extra=cfg.extra||1000;
     if(mins<=10) return t10;
-    if(mins<=15) return t15;
-    if(mins<=20) return t20;
-    return t20+(mins-20)*extra;
+    return t10+(mins-10)*extra;
   }
   // Estándar
   if(mins<=10) return 15000;
@@ -5856,8 +5847,8 @@ function getPricingLabel(stand){
   var cfg=db[stand];
   if(typeof cfg==='number') cfg={type:'estandar',ppm:cfg};
   if(!cfg) cfg={type:'estandar',ppm:1000};
-  if(cfg.type==='especial') return '0-10min:'+fM(cfg.t10||15000)+' · 15:'+fM(cfg.t15||18000)+' · 20:'+fM(cfg.t20||20000)+' · 30:'+fM(cfg.t30||28000)+' · +'+fM(cfg.extra||1000)+'/min extra';
-  if(cfg.type==='nueva') return '0-10min:'+fM(cfg.t10||20000)+' · 15:'+fM(cfg.t15||25000)+' · 20:'+fM(cfg.t20||30000)+' · +'+fM(cfg.extra||1000)+'/min extra';
+  if(cfg.type==='especial') return '0-10min:'+fM(cfg.t10||15000)+' · +'+fM(cfg.extra||1000)+'/min desde el min. 11';
+  if(cfg.type==='nueva') return '0-10min:'+fM(cfg.t10||20000)+' · +'+fM(cfg.extra||1000)+'/min desde el min. 11';
   return '0-10min:'+fM(15000)+' fijo · +'+fM(cfg.ppm||1000)+'/min extra';
 }
 
@@ -5868,14 +5859,14 @@ function setPricingType(stand, type){
   if(typeof cfg==='number') cfg={type:'estandar',ppm:cfg};
   cfg.type=type;
   if(type==='nueva'){
-    cfg.t10=cfg.t10||20000;cfg.t15=cfg.t15||25000;cfg.t20=cfg.t20||30000;cfg.extra=cfg.extra||1000;
+    cfg.t10=cfg.t10||20000;cfg.extra=cfg.extra||1000;
   }
   if(type==='especial'){
-    cfg.t10=cfg.t10||15000;cfg.t15=cfg.t15||18000;cfg.t20=cfg.t20||20000;cfg.t30=cfg.t30||28000;cfg.extra=cfg.extra||1000;
+    cfg.t10=cfg.t10||15000;cfg.extra=cfg.extra||1000;
   }
   db[stand]=cfg;
   LS.set('sr_pricing',db);
-  var label=type==='especial'?'Especial (escalonada)':(type==='nueva'?'Nueva (escalonada)':'Estándar');
+  var label=type==='especial'?'Especial':(type==='nueva'?'Nueva':'Estándar');
   toast('✔ '+stand+': tarifa '+label+' activada');
   renderPricing();
 }
@@ -5884,15 +5875,12 @@ function savePriceEspecial(stand){
   if(!CU||CU.role!=='gerente'){toast('Solo el gerente puede modificar tarifas');return;}
   var sid=stand.replace(/ /g,'_');
   var t10=parseFloat(document.getElementById('pr-esp-t10-'+sid).value);
-  var t15=parseFloat(document.getElementById('pr-esp-t15-'+sid).value);
-  var t20=parseFloat(document.getElementById('pr-esp-t20-'+sid).value);
-  var t30=parseFloat(document.getElementById('pr-esp-t30-'+sid).value);
   var extra=parseFloat(document.getElementById('pr-esp-extra-'+sid).value);
-  if(!t10||!t15||!t20||!t30||!extra){toast('Completa todos los valores');return;}
+  if(!t10||!extra){toast('Completa todos los valores');return;}
   var db=LS.get('sr_pricing')||{};
   var cfg=db[stand]||{type:'especial'};
   if(typeof cfg==='number') cfg={type:'especial'};
-  cfg.type='especial';cfg.t10=t10;cfg.t15=t15;cfg.t20=t20;cfg.t30=t30;cfg.extra=extra;
+  cfg.type='especial';cfg.t10=t10;cfg.extra=extra;
   db[stand]=cfg;
   LS.set('sr_pricing',db);
   toast('✔ '+stand+': tarifa especial actualizada');
@@ -5903,14 +5891,12 @@ function savePriceNueva(stand){
   if(!CU||CU.role!=='gerente'){toast('Solo el gerente puede modificar tarifas');return;}
   var sid=stand.replace(/ /g,'_');
   var t10=parseFloat(document.getElementById('pr-t10-'+sid).value);
-  var t15=parseFloat(document.getElementById('pr-t15-'+sid).value);
-  var t20=parseFloat(document.getElementById('pr-t20-'+sid).value);
   var extra=parseFloat(document.getElementById('pr-extra-'+sid).value);
-  if(!t10||!t15||!t20||!extra){toast('Completa todos los valores');return;}
+  if(!t10||!extra){toast('Completa todos los valores');return;}
   var db=LS.get('sr_pricing')||{};
   var cfg=db[stand]||{type:'nueva'};
   if(typeof cfg==='number') cfg={type:'nueva'};
-  cfg.type='nueva';cfg.t10=t10;cfg.t15=t15;cfg.t20=t20;cfg.extra=extra;
+  cfg.type='nueva';cfg.t10=t10;cfg.extra=extra;
   db[stand]=cfg;
   LS.set('sr_pricing',db);
   toast('✔ '+stand+': tarifa nueva actualizada');
