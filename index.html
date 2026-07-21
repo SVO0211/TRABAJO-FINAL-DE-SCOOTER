@@ -3579,14 +3579,18 @@ function renderPricing(){
     if(!cfg) cfg={type:'estandar',ppm:1000};
     var type=cfg.type||'estandar';
     var ppm=cfg.ppm||1000;
-    var t10=cfg.t10||20000,t15=cfg.t15||25000,t20=cfg.t20||30000,extra=cfg.extra||1000;
-    var sid=s.replace(/ /g,'_');
     var isEsp=type==='especial';
     var isNew=type==='nueva';
+    var t10=isEsp?(cfg.t10||15000):(cfg.t10||20000);
+    var t15=isEsp?(cfg.t15||18000):(cfg.t15||25000);
+    var t20=isEsp?(cfg.t20||20000):(cfg.t20||30000);
+    var t30=cfg.t30||28000;
+    var extra=cfg.extra||1000;
+    var sid=s.replace(/ /g,'_');
     var typeColor=isEsp?'var(--amber)':(isNew?'#33cc66':'var(--accent)');
 
     var preview=isEsp
-      ?'0-10min: <b style="color:var(--amber)">'+fM(15000)+'</b> · 15min: <b style="color:var(--amber)">'+fM(18000)+'</b> · 20min: <b style="color:var(--amber)">'+fM(20000)+'</b> · 30min: <b style="color:var(--amber)">'+fM(28000)+'</b> · luego +<b style="color:var(--amber)">'+fM(800)+'</b>/min'
+      ?'0-10min: <b style="color:var(--amber)">'+fM(t10)+'</b> · 15min: <b style="color:var(--amber)">'+fM(t15)+'</b> · 20min: <b style="color:var(--amber)">'+fM(t20)+'</b> · 30min: <b style="color:var(--amber)">'+fM(t30)+'</b> · luego +<b style="color:var(--amber)">'+fM(extra)+'</b>/min'
       :isNew
       ?'0-10min: <b style="color:#33cc66">'+fM(t10)+'</b> · 15min: <b style="color:#33cc66">'+fM(t15)+'</b> · 20min: <b style="color:#33cc66">'+fM(t20)+'</b> · luego +<b style="color:#33cc66">'+fM(extra)+'</b>/min'
       :'0-10min: <b style="color:var(--accent)">'+fM(15000)+'</b> fijo · luego +<b style="color:var(--accent)">'+fM(ppm)+'</b>/min';
@@ -3600,7 +3604,16 @@ function renderPricing(){
       var btnEsp='<button data-stand="'+s+'" data-type="especial" onclick="setPricingType(this.dataset.stand,this.dataset.type)" style="flex:1;padding:.5rem;border-radius:8px;border:1.5px solid '+(isEsp?'var(--amber)':'var(--border)')+';background:'+(isEsp?'rgba(255,170,0,.1)':'var(--bg3)')+';color:'+(isEsp?'var(--amber)':'var(--muted)')+';font-size:.78rem;font-weight:700;cursor:pointer">🎯 Especial</button>';
       var btnNew='<button data-stand="'+s+'" data-type="nueva" onclick="setPricingType(this.dataset.stand,this.dataset.type)" style="flex:1;padding:.5rem;border-radius:8px;border:1.5px solid '+(isNew?'#33cc66':'var(--border)')+';background:'+(isNew?'rgba(51,204,102,.1)':'var(--bg3)')+';color:'+(isNew?'#33cc66':'var(--muted)')+';font-size:.78rem;font-weight:700;cursor:pointer">🆕 Nueva</button>';
       var ppmInput=isEsp
-        ?'<div style="font-size:.75rem;color:var(--amber);padding:.35rem .6rem;background:rgba(255,170,0,.08);border-radius:6px;margin-top:.4rem">Tarifa especial fija — sin configuración adicional</div>'
+        ?'<div style="margin-top:.5rem">'
+          +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">'
+            +'<div><label style="font-size:.7rem;color:var(--muted)">10 min</label><input type="number" id="pr-esp-t10-'+sid+'" value="'+t10+'" min="0" step="500" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
+            +'<div><label style="font-size:.7rem;color:var(--muted)">15 min</label><input type="number" id="pr-esp-t15-'+sid+'" value="'+t15+'" min="0" step="500" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
+            +'<div><label style="font-size:.7rem;color:var(--muted)">20 min</label><input type="number" id="pr-esp-t20-'+sid+'" value="'+t20+'" min="0" step="500" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
+            +'<div><label style="font-size:.7rem;color:var(--muted)">30 min</label><input type="number" id="pr-esp-t30-'+sid+'" value="'+t30+'" min="0" step="500" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
+            +'<div style="grid-column:1/-1"><label style="font-size:.7rem;color:var(--muted)">Min. adicional (después de 30)</label><input type="number" id="pr-esp-extra-'+sid+'" value="'+extra+'" min="0" step="100" inputmode="numeric" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.5rem .6rem;color:var(--text);font-family:var(--mono)"/></div>'
+          +'</div>'
+          +'<button data-stand="'+s+'" onclick="savePriceEspecial(this.dataset.stand)" class="btn btn-sm" style="min-height:40px;width:100%;margin-top:.5rem">Guardar</button>'
+        +'</div>'
         :isNew
         ?'<div style="margin-top:.5rem">'
           +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">'
@@ -3791,10 +3804,61 @@ function renderUsers(){
       </div>
       <div class="user-actions">
         ${isG&&u.username!==CU.username?`<button class="btn btn-ghost btn-sm" onclick="verPerfilEmpleado('${u.username}')" style="color:var(--accent);border-color:var(--accent);font-size:.75rem;padding:.3rem .65rem;min-height:32px">👤 Ver</button>`:''}
+        ${isG?`<button class="btn btn-ghost btn-sm" onclick="openEditUserModal('${u.username}')" style="color:#33cc66;border-color:#33cc66;font-size:.75rem;padding:.3rem .65rem;min-height:32px">✏️ Editar</button>`:''}
         ${u.username!=='gerente'?`<button class="btn btn-ghost btn-sm" onclick="deleteUser('${u.username}')" style="color:var(--accent3);border-color:var(--accent3);font-size:.75rem;padding:.3rem .65rem;min-height:32px">✕</button>`:''}
       </div>
     </div>`;
   }).join('');
+}
+function openEditUserModal(username){
+  if(!CU||CU.role!=='gerente'){toast('Solo el gerente puede editar usuarios');return;}
+  const us=LS.get('sr_users')||[];
+  const u=us.find(x=>x.username===username);
+  if(!u){toast('Usuario no encontrado');return;}
+  document.getElementById('eu-original-username').value=username;
+  document.getElementById('eu-username').value=username;
+  document.getElementById('eu-fullname').value=u.fullName||'';
+  document.getElementById('eu-email').value=u.email||'';
+  document.getElementById('eu-phone').value=u.phone||'';
+  document.getElementById('eu-birthday').value=u.birthday||'';
+  document.getElementById('eu-pass').value='';
+  const m=document.getElementById('edit-user-modal');
+  m.style.display='flex';m.style.alignItems='center';m.style.justifyContent='center';
+}
+function closeEditUserModal(){document.getElementById('edit-user-modal').style.display='none';}
+function saveEditUser(){
+  if(!CU||CU.role!=='gerente'){toast('Solo el gerente puede editar usuarios');return;}
+  const oldUsername=document.getElementById('eu-original-username').value;
+  const newUsername=document.getElementById('eu-username').value.trim();
+  const fullName=document.getElementById('eu-fullname').value.trim().toUpperCase();
+  const email=document.getElementById('eu-email').value.trim();
+  const phone=document.getElementById('eu-phone').value.trim();
+  const birthday=document.getElementById('eu-birthday').value;
+  const pass=document.getElementById('eu-pass').value;
+  if(!newUsername){toast('El usuario no puede estar vacío');return;}
+  if(oldUsername==='gerente'&&newUsername!=='gerente'){toast('No puedes renombrar al gerente principal');return;}
+  const us=LS.get('sr_users')||[];
+  if(newUsername!==oldUsername&&us.find(x=>x.username===newUsername)){toast('Ese usuario ya existe');return;}
+  if(pass&&pass.length<4){toast('Mín. 4 caracteres en contraseña');return;}
+  const idx=us.findIndex(x=>x.username===oldUsername);
+  if(idx===-1){toast('Usuario no encontrado');return;}
+  us[idx].username=newUsername;
+  us[idx].fullName=fullName||newUsername;
+  us[idx].email=email;
+  us[idx].phone=phone;
+  us[idx].birthday=birthday;
+  if(pass)us[idx].password=pass;
+  LS.set('sr_users',us);
+  if(newUsername!==oldUsername){
+    const avs=LS.get('sr_avatars')||{};
+    if(avs[oldUsername]){avs[newUsername]=avs[oldUsername];delete avs[oldUsername];LS.set('sr_avatars',avs);}
+    const sessions=LS.get('sr_sessions')||{};
+    if(sessions[oldUsername]){sessions[newUsername]=sessions[oldUsername];delete sessions[oldUsername];LS.set('sr_sessions',sessions);}
+  }
+  if(CU.username===oldUsername)CU.username=newUsername;
+  closeEditUserModal();
+  toast('✔ Usuario actualizado');
+  renderUsers();
 }
 function updateUserField(username,field,value){
   const us=LS.get('sr_users')||[];
@@ -5757,8 +5821,8 @@ function purgePastRestDays(){
 }
 
 // ══ MOTOR DE PRECIOS ══
-// Tipo 'estandar': 0-10min=$15.000 fijo, luego +$1.000/min
-// Tipo 'especial':  0-10=$15.000, 15=$18.000, 20=$20.000, 30=$28.000, luego +$800/min
+// Tipo 'estandar': 0-10min=$15.000 fijo, luego +$/min editable (default $1.000)
+// Tipo 'especial':  0-10=$15.000, 15=$18.000, 20=$20.000, 30=$28.000, luego +$/min editable (default $1.000) — todo editable
 // Tipo 'nueva':     0-10=$20.000, 15=$25.000, 20=$30.000, luego +$1.000/min (editable)
 function calcSubtotal(mins, stand){
   var db=LS.get('sr_pricing')||{};
@@ -5767,11 +5831,12 @@ function calcSubtotal(mins, stand){
   if(!cfg) cfg={type:'estandar',ppm:1000};
   var type=cfg.type||'estandar';
   if(type==='especial'){
-    if(mins<=10) return 15000;
-    if(mins<=15) return 18000;
-    if(mins<=20) return 20000;
-    if(mins<=30) return 28000;
-    return 28000+(mins-30)*800;
+    var et10=cfg.t10||15000,et15=cfg.t15||18000,et20=cfg.t20||20000,et30=cfg.t30||28000,eextra=cfg.extra||1000;
+    if(mins<=10) return et10;
+    if(mins<=15) return et15;
+    if(mins<=20) return et20;
+    if(mins<=30) return et30;
+    return et30+(mins-30)*eextra;
   }
   if(type==='nueva'){
     var t10=cfg.t10||20000,t15=cfg.t15||25000,t20=cfg.t20||30000,extra=cfg.extra||1000;
@@ -5791,7 +5856,7 @@ function getPricingLabel(stand){
   var cfg=db[stand];
   if(typeof cfg==='number') cfg={type:'estandar',ppm:cfg};
   if(!cfg) cfg={type:'estandar',ppm:1000};
-  if(cfg.type==='especial') return '0-10min:'+fM(15000)+' · 15:'+fM(18000)+' · 20:'+fM(20000)+' · 30:'+fM(28000)+' · +'+fM(800)+'/min extra';
+  if(cfg.type==='especial') return '0-10min:'+fM(cfg.t10||15000)+' · 15:'+fM(cfg.t15||18000)+' · 20:'+fM(cfg.t20||20000)+' · 30:'+fM(cfg.t30||28000)+' · +'+fM(cfg.extra||1000)+'/min extra';
   if(cfg.type==='nueva') return '0-10min:'+fM(cfg.t10||20000)+' · 15:'+fM(cfg.t15||25000)+' · 20:'+fM(cfg.t20||30000)+' · +'+fM(cfg.extra||1000)+'/min extra';
   return '0-10min:'+fM(15000)+' fijo · +'+fM(cfg.ppm||1000)+'/min extra';
 }
@@ -5805,10 +5870,32 @@ function setPricingType(stand, type){
   if(type==='nueva'){
     cfg.t10=cfg.t10||20000;cfg.t15=cfg.t15||25000;cfg.t20=cfg.t20||30000;cfg.extra=cfg.extra||1000;
   }
+  if(type==='especial'){
+    cfg.t10=cfg.t10||15000;cfg.t15=cfg.t15||18000;cfg.t20=cfg.t20||20000;cfg.t30=cfg.t30||28000;cfg.extra=cfg.extra||1000;
+  }
   db[stand]=cfg;
   LS.set('sr_pricing',db);
   var label=type==='especial'?'Especial (escalonada)':(type==='nueva'?'Nueva (escalonada)':'Estándar');
   toast('✔ '+stand+': tarifa '+label+' activada');
+  renderPricing();
+}
+
+function savePriceEspecial(stand){
+  if(!CU||CU.role!=='gerente'){toast('Solo el gerente puede modificar tarifas');return;}
+  var sid=stand.replace(/ /g,'_');
+  var t10=parseFloat(document.getElementById('pr-esp-t10-'+sid).value);
+  var t15=parseFloat(document.getElementById('pr-esp-t15-'+sid).value);
+  var t20=parseFloat(document.getElementById('pr-esp-t20-'+sid).value);
+  var t30=parseFloat(document.getElementById('pr-esp-t30-'+sid).value);
+  var extra=parseFloat(document.getElementById('pr-esp-extra-'+sid).value);
+  if(!t10||!t15||!t20||!t30||!extra){toast('Completa todos los valores');return;}
+  var db=LS.get('sr_pricing')||{};
+  var cfg=db[stand]||{type:'especial'};
+  if(typeof cfg==='number') cfg={type:'especial'};
+  cfg.type='especial';cfg.t10=t10;cfg.t15=t15;cfg.t20=t20;cfg.t30=t30;cfg.extra=extra;
+  db[stand]=cfg;
+  LS.set('sr_pricing',db);
+  toast('✔ '+stand+': tarifa especial actualizada');
   renderPricing();
 }
 
@@ -8567,6 +8654,42 @@ setDT();
     <button onclick="closeEmpPerfilModal()" style="position:absolute;top:.85rem;right:.85rem;background:transparent;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
     <div style="font-size:.78rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem">👤 Perfil de Empleado</div>
     <div id="emp-perfil-body"></div>
+  </div>
+</div>
+
+<!-- EDIT USER MODAL (gerente) -->
+<div id="edit-user-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:5000;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:18px;width:100%;max-width:420px;max-height:88vh;overflow-y:auto;padding:1.25rem;position:relative">
+    <button onclick="closeEditUserModal()" style="position:absolute;top:.85rem;right:.85rem;background:transparent;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
+    <div style="font-size:.78rem;font-weight:700;color:#33cc66;text-transform:uppercase;letter-spacing:1px;margin-bottom:1rem">✏️ Editar Usuario</div>
+    <input type="hidden" id="eu-original-username"/>
+    <div style="display:flex;flex-direction:column;gap:.7rem">
+      <div>
+        <label style="font-size:.72rem;color:var(--muted)">Nombre completo</label>
+        <input type="text" id="eu-fullname" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.6rem .75rem;color:var(--text);font-family:var(--font);box-sizing:border-box"/>
+      </div>
+      <div>
+        <label style="font-size:.72rem;color:var(--muted)">Usuario (login)</label>
+        <input type="text" id="eu-username" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.6rem .75rem;color:var(--text);font-family:var(--font);box-sizing:border-box"/>
+      </div>
+      <div>
+        <label style="font-size:.72rem;color:var(--muted)">Email</label>
+        <input type="email" id="eu-email" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.6rem .75rem;color:var(--text);font-family:var(--font);box-sizing:border-box"/>
+      </div>
+      <div>
+        <label style="font-size:.72rem;color:var(--muted)">Teléfono</label>
+        <input type="tel" id="eu-phone" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.6rem .75rem;color:var(--text);font-family:var(--font);box-sizing:border-box"/>
+      </div>
+      <div>
+        <label style="font-size:.72rem;color:var(--muted)">Cumpleaños</label>
+        <input type="date" id="eu-birthday" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.6rem .75rem;color:var(--text);font-family:var(--font);box-sizing:border-box"/>
+      </div>
+      <div>
+        <label style="font-size:.72rem;color:var(--muted)">Nueva contraseña (opcional)</label>
+        <input type="password" id="eu-pass" placeholder="Dejar vacío para no cambiar" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:.6rem .75rem;color:var(--text);font-family:var(--font);box-sizing:border-box"/>
+      </div>
+      <button class="btn" onclick="saveEditUser()" style="min-height:44px;margin-top:.4rem">Guardar cambios</button>
+    </div>
   </div>
 </div>
 
