@@ -1595,6 +1595,7 @@ input,textarea{-webkit-user-select:text!important;-moz-user-select:text!importan
       <select id="edit-qty"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option><option>11</option><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>17</option><option>18</option><option>19</option><option>20</option></select>
     </div>
     <div class="field"><label>Stand</label><select id="edit-stand"></select></div>
+    <div id="edit-locked-note" style="display:none;font-size:.75rem;color:var(--amber);padding:.5rem .6rem;background:rgba(255,170,0,.08);border-radius:8px;margin:-.5rem 0 .85rem">🔒 Cantidad y stand no se pueden cambiar: esta renta ya tiene scooters despachados.</div>
     <div class="field"><label>Fecha</label><input type="date" id="edit-date"/></div>
     <div class="field"><label>Hora</label><input type="time" id="edit-hour"/></div>
     <div style="padding:.85rem 1rem;background:var(--bg3);border:1px solid rgba(255,68,68,.25);border-radius:10px;margin-bottom:1rem;">
@@ -3122,7 +3123,7 @@ function renderCards(filter){
         <button class="btn btn-sm" style="-webkit-box-flex:1;-ms-flex:1;flex:1;min-height:44px;touch-action:manipulation" onclick="goScanFor('${r.id}','salida')">🟢 Escanear Salida</button>
         ${r.status==='waiting'&&r.clientPhone?`<button class="btn btn-ghost btn-sm" style="min-height:44px;border-color:#25D366;color:#25D366" onclick="notifyWaiting('${r.id}')">💬 Notificar</button>`:''}
         ${scanned>0?`<button class="btn btn-sec btn-sm" style="-webkit-box-flex:1;-ms-flex:1;flex:1;min-height:44px;touch-action:manipulation" onclick="goScanFor('${r.id}','retorno')">🟡 Retorno</button>`:''}
-        ${CU&&CU.role==='gerente'&&r.status==='waiting'?`<button class="btn btn-ghost btn-sm" style="min-height:44px;touch-action:manipulation;border-color:var(--accent);color:var(--accent)" onclick="openEditCard('${r.id}')">✏️</button>`:''}
+        ${CU&&CU.role==='gerente'?`<button class="btn btn-ghost btn-sm" style="min-height:44px;touch-action:manipulation;border-color:var(--accent);color:var(--accent)" onclick="openEditCard('${r.id}')">✏️</button>`:''}
       </div>
     </div>`;
   }).join('');
@@ -3332,6 +3333,16 @@ function updateDailySnapshot(r){
   if(!snapshots[day].stands[r.stand])snapshots[day].stands[r.stand]={rentals:0,income:0};
   snapshots[day].stands[r.stand].rentals++;
   snapshots[day].stands[r.stand].income+=(r.total||0);
+  LS.set('sr_snapshots',snapshots);
+}
+function revertDailySnapshot(r){
+  if(!r.returnTime)return;
+  const day=new Date(r.returnTime).toISOString().split('T')[0];
+  const snapshots=LS.get('sr_snapshots')||{};
+  const st=snapshots[day]&&snapshots[day].stands[r.stand];
+  if(!st)return;
+  st.rentals=Math.max(0,st.rentals-1);
+  st.income=Math.max(0,st.income-(r.total||0));
   LS.set('sr_snapshots',snapshots);
 }
 function showSR(type,msg){const e=document.getElementById('scan-result');e.style.display='block';e.className='alert '+(type==='success'?'alert-success':'alert-error');e.textContent=msg;}
@@ -3912,13 +3923,14 @@ function renderTicketsHistory(){
     const disc=r.discount>0?`<span style="font-size:.75rem;color:#ffd700">-${fM(r.discount)} (${r.vipDiscount}% VIP)</span>`:'';
     const hasCtrato=savedContratos.some(c=>c.rentalId===r.id);
     const cBtn=hasCtrato?`<button onclick="event.stopPropagation();viewContrato('${r.id}')" style="margin-top:.3rem;background:rgba(0,200,80,.12);border:1px solid rgba(0,200,80,.4);border-radius:6px;padding:.2rem .55rem;color:#00c850;font-size:.72rem;cursor:pointer;font-family:var(--font)">📄 Contrato</button>`:'';
+    const editBtn=(CU&&CU.role==='gerente')?`<button onclick="event.stopPropagation();openEditCard('${r.id}')" style="margin-top:.3rem;margin-left:.4rem;background:rgba(0,170,255,.12);border:1px solid rgba(0,170,255,.4);border-radius:6px;padding:.2rem .55rem;color:var(--accent);font-size:.72rem;cursor:pointer;font-family:var(--font)">✏️ Editar</button>`:'';
     return`<div class="ticket-history-card" onclick="showTicketFromId('${r.id}')">
       <div class="th-header">
         <div>
           <div class="th-client">#${r.consecutivo||'—'} · ${r.clientName} ${vipBadge}</div>
           <div class="th-meta">Doc: ${r.clientDoc}${r.clientPhone?' · 📞 '+r.clientPhone:''}</div>
           <div class="th-meta">${r.stand} · ${r.qty} scooter${r.qty>1?'s':''} · ${(r.scooterDetails&&r.scooterDetails.length)||0} escaneados</div>
-          ${cBtn}
+          ${cBtn}${editBtn}
         </div>
         <div style="text-align:right">
           <div class="th-total">${fM(r.total)}</div>
@@ -4006,14 +4018,14 @@ function toggleVIP(doc,event){
 }
 
 
-// ══ EDITAR TARJETA (solo gerente) ══
+// ══ EDITAR TARJETA (solo gerente) — cualquier estado: esperando, activa o finalizada ══
 function openEditCard(id){
   if(!CU||CU.role!=='gerente'){toast('Solo el gerente puede editar tarjetas');return;}
   var r=(LS.get('sr_rentals')||[]).find(function(x){return x.id===id;});
   if(!r){toast('Tarjeta no encontrada');return;}
-  if(r.status!=='waiting'){toast('Solo se pueden editar tarjetas que aún no han sido escaneadas');return;}
   document.getElementById('edit-rental-id').value=r.id;
-  document.getElementById('edit-card-consec').textContent='#'+(r.consecutivo||'—');
+  var statusLabel=r.status==='waiting'?'Esperando despacho':r.status==='active'?'En curso':'Finalizada';
+  document.getElementById('edit-card-consec').textContent='#'+(r.consecutivo||'—')+' · '+statusLabel;
   document.getElementById('edit-name').value=r.clientName||'';
   document.getElementById('edit-doc').value=r.clientDoc||'';
   document.getElementById('edit-phone').value=r.clientPhone||'';
@@ -4024,36 +4036,53 @@ function openEditCard(id){
   var estSel=document.getElementById('edit-stand');
   var stands=getStands();
   estSel.innerHTML=stands.map(function(s){return'<option value="'+s+'"'+(s===r.stand?' selected':'')+'>'+s+'</option>';}).join('');
+  // Cantidad y stand solo se pueden tocar mientras la renta no tenga scooters despachados
+  var locked=r.status!=='waiting';
+  document.getElementById('edit-qty').disabled=locked;
+  document.getElementById('edit-stand').disabled=locked;
+  var lockNote=document.getElementById('edit-locked-note');
+  if(lockNote)lockNote.style.display=locked?'block':'none';
   document.getElementById('edit-card-modal').classList.add('show');
 }
 function closeEditModal(){document.getElementById('edit-card-modal').classList.remove('show');}
 function saveEditRental(){
+  if(!CU||CU.role!=='gerente'){toast('Solo el gerente puede editar tarjetas');return;}
   var id=document.getElementById('edit-rental-id').value;
   var rentals=LS.get('sr_rentals')||[];
   var idx=rentals.findIndex(function(r){return r.id===id;});
   if(idx===-1){toast('Tarjeta no encontrada');return;}
   var r=rentals[idx];
-  var newQty=parseInt(document.getElementById('edit-qty').value)||r.qty;
-  // Can't reduce qty below already scanned
-  var scanned=(r.scooterDetails||[]).length;
-  if(newQty<scanned){toast('No puedes reducir scooters por debajo de los ya escaneados ('+scanned+')');return;}
+  var locked=r.status!=='waiting';
   r.clientName=(document.getElementById('edit-name').value.trim()||r.clientName).toUpperCase();
   r.clientDoc=document.getElementById('edit-doc').value.trim()||r.clientDoc;
   r.clientPhone=document.getElementById('edit-phone').value.trim();
-  r.qty=newQty;
-  r.stand=document.getElementById('edit-stand').value||r.stand;
   r.date=document.getElementById('edit-date').value||r.date;
   r.time=document.getElementById('edit-hour').value||r.time;
+  if(!locked){
+    var newQty=parseInt(document.getElementById('edit-qty').value)||r.qty;
+    // Can't reduce qty below already scanned
+    var scanned=(r.scooterDetails||[]).length;
+    if(newQty<scanned){toast('No puedes reducir scooters por debajo de los ya escaneados ('+scanned+')');return;}
+    r.qty=newQty;
+    r.stand=document.getElementById('edit-stand').value||r.stand;
+  }
   r.editedBy=CU.username;r.editedAt=Date.now();
   rentals[idx]=r;LS.set('sr_rentals',rentals);
   closeEditModal();renderCards(currentFilter);refreshDashboard();
-  toast('✔ Tarjeta #'+(r.consecutivo||'—')+' actualizada');
+  if(typeof renderTicketsHistory==='function')renderTicketsHistory();
+  toast('✔ Tarjeta #'+(r.consecutivo||'—')+' actualizada'+(locked?' (cantidad/stand bloqueados: renta ya en curso o cerrada)':''));
 }
 function deleteRental(){
+  if(!CU||CU.role!=='gerente'){toast('Solo el gerente puede eliminar tarjetas');return;}
   var id=document.getElementById('edit-rental-id').value;
   var r=(LS.get('sr_rentals')||[]).find(function(x){return x.id===id;});
   if(!r)return;
-  if(!confirm('¿Eliminar tarjeta de '+r.clientName+'? Esta acción no se puede deshacer.'))return;
+  var warn=r.status==='returned'
+    ?'¿Eliminar la renta finalizada de '+r.clientName+' ('+fM(r.total||0)+')? Esto la quitará de los reportes de ingresos del día. Esta acción no se puede deshacer.'
+    :r.status==='active'
+    ?'¿Eliminar la renta en curso de '+r.clientName+'? Los scooters asignados quedarán disponibles de nuevo. Esta acción no se puede deshacer.'
+    :'¿Eliminar tarjeta de '+r.clientName+'? Esta acción no se puede deshacer.';
+  if(!confirm(warn))return;
   // Release scooters
   var scooters=LS.get('sr_scooters')||[];
   (r.scooterDetails||[]).forEach(function(sd){
@@ -4061,9 +4090,11 @@ function deleteRental(){
     if(si!==-1)scooters[si].status='available';
   });
   LS.set('sr_scooters',scooters);
+  if(r.status==='returned')revertDailySnapshot(r);
   LS.set('sr_rentals',(LS.get('sr_rentals')||[]).filter(function(x){return x.id!==id;}));
-  writeLog('delete','🗑 Tarjeta eliminada por '+CU.username,{id:id});
+  writeLog('delete','🗑 Tarjeta eliminada por '+CU.username+' (estado: '+r.status+')',{id:id});
   closeEditModal();renderCards(currentFilter);refreshDashboard();
+  if(typeof renderTicketsHistory==='function')renderTicketsHistory();
   toast('Tarjeta eliminada');
 }
 
