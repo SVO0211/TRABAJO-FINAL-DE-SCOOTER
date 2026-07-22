@@ -2252,6 +2252,17 @@ function rs4s(stand){
   return rs.filter(function(r){return r.stand===stand;});
 }
 
+// El gerente ve las ventas de todos; cualquier otro perfil solo ve lo que él mismo registró, despachó o cobró
+function esParticipante(r,username){
+  return r.createdBy===username||r.dispatchBy===username||r.returnBy===username||
+    (r.scooterDetails||[]).some(function(sd){return sd.scannedBy===username||sd.returnedBy===username;});
+}
+function filtrarVentasPropias(rentals){
+  if(!CU||CU.role==='gerente')return rentals;
+  var username=CU.username;
+  return rentals.filter(function(r){return esParticipante(r,username);});
+}
+
 // ══ DASHBOARD ══
 function onDashPeriodChange(){
   const pt=document.getElementById('dash-period-type').value;
@@ -2281,6 +2292,8 @@ function refreshDashboard(){
   const pv=(document.getElementById('dash-period-val')||{}).value||'';
   document.getElementById('dash-stand-title').textContent=stand==='all'?'Todos los Stands':stand;
   const rentals=rs4s(stand);
+  // Ventas (rentas ya cobradas) e historial reciente: el gerente ve todo el stand, los demás solo lo suyo
+  const misRentals=filtrarVentasPropias(rentals);
   // Period label
   const now2=new Date();
   let lbl='';
@@ -2290,12 +2303,12 @@ function refreshDashboard(){
   else if(pt==='month'&&pv)lbl='Mes: '+new Date(pv+'-01T12:00').toLocaleDateString('es-CO',{month:'long',year:'numeric'});
   else if(pt==='year'&&pv)lbl='Año: '+pv;
   const pl=document.getElementById('dash-period-label');if(pl)pl.textContent=lbl;
-  // Active + waiting always real-time
+  // Active + waiting: estado operativo del stand, se muestran completos a todos los que trabajan ahí
   let activeSc=0;
   rentals.forEach(r=>{if(r.status==='active')(r.scooterDetails||[]).filter(sd=>sd.exitTime&&!sd.returnTime).forEach(()=>activeSc++);});
   const waiting=rentals.filter(r=>r.status==='waiting').length;
   const filterFn=getDashFilterFn();
-  const periodDone=rentals.filter(r=>r.status==='returned'&&filterFn(r));
+  const periodDone=misRentals.filter(r=>r.status==='returned'&&filterFn(r));
   const income=periodDone.reduce((s,r)=>s+(r.total||0),0);
   document.getElementById('stat-active').textContent=activeSc;
   document.getElementById('stat-waiting').textContent=waiting;
@@ -2312,7 +2325,7 @@ function refreshDashboard(){
   var cajaPendingEl=document.getElementById('caja-pending-alert');
   if(cajaPendingEl&&canAccessCaja()){
     var allRent=LS.get('sr_rentals')||[];
-    var pendingPay=allRent.filter(function(r){return r.status==='returned'&&!r.paid&&(CU.role==='gerente'||r.stand===CU.stand);});
+    var pendingPay=allRent.filter(function(r){return r.status==='returned'&&!r.paid&&(CU.role==='gerente'||esParticipante(r,CU.username));});
     if(pendingPay.length>0){
       cajaPendingEl.style.display='block';
       var totalPend=pendingPay.reduce(function(s,r){return s+(r.total||0);},0);
@@ -2320,7 +2333,7 @@ function refreshDashboard(){
     } else {cajaPendingEl.style.display='none';}
   } else if(cajaPendingEl){cajaPendingEl.style.display='none';}
   const tbody=document.getElementById('dash-recent');
-  const recent=[...rentals].filter(r=>r.status!=='returned'||filterFn(r)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,15);
+  const recent=[...misRentals].filter(r=>r.status!=='returned'||filterFn(r)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,15);
   if(!recent.length){tbody.innerHTML='<tr class="empty-row"><td colspan="8">Sin registros en este período</td></tr>';return;}
   tbody.innerHTML=recent.map(r=>{
     const badge=r.status==='active'?'<span class="badge badge-green">Activo</span>':r.status==='waiting'?'<span class="badge badge-amber">Esperando</span>':'<span class="badge" style="background:var(--bg3);color:var(--muted)">Devuelto</span>';
@@ -2393,6 +2406,7 @@ function renderStats(){
   var filterFn=getStatsFilterFn();
   var filtered=rentals.filter(function(r){return r.status==='returned'&&filterFn(r);});
   if(filterStand!=='all')filtered=filtered.filter(function(r){return r.stand===filterStand;});
+  filtered=filtrarVentasPropias(filtered);
   var totalRentals=filtered.length;
   var totalIncome=filtered.reduce(function(s,r){return s+(r.total||0);},0);
   var totalMins=filtered.reduce(function(s,r){return s+(r.scooterDetails||[]).reduce(function(a,sd){return a+(sd.mins||0);},0);},0);
@@ -2422,9 +2436,9 @@ function renderStatsByEmployee(filtered){
   var users=LS.get('sr_users')||[];
   // Build map: username -> {registered, dispatched, returned, income}
   var empMap={};
-  // Admin: only show employees from own stand
-  if(CU&&CU.role==='admin'&&CU.stand&&CU.stand!=='Todos'){
-    users=users.filter(function(u){return u.stand===CU.stand;});
+  // Solo el gerente ve el desglose de todos los empleados; los demás solo ven su propia fila
+  if(CU&&CU.role!=='gerente'){
+    users=users.filter(function(u){return u.username===CU.username;});
   }
   users.forEach(function(u){
     if(u.role==='gerente')return; // skip gerente
@@ -3432,7 +3446,7 @@ function renderHistory(){
   // Non-gerentes can only see their stand
   const allowedStand=CU&&CU.role==='gerente'?null:(CU&&CU.stand||null);
   const fs=allowedStand||fsEl.value;
-  const rs2=rs4s(fs==='all'?'all':fs);
+  const rs2=filtrarVentasPropias(rs4s(fs==='all'?'all':fs));
   const rows=[];
   rs2.forEach(r=>{
     const sds=r.scooterDetails||[];
@@ -3475,7 +3489,7 @@ function renderHistory(){
 function exportData(){
   var fs=document.getElementById('export-stand').value;
   var fmt=document.getElementById('export-format').value;
-  var rs2=rs4s(fs==='all'?'all':fs);
+  var rs2=filtrarVentasPropias(rs4s(fs==='all'?'all':fs));
   var pricing=LS.get('sr_pricing')||{};
   var rows=[];
   var dateStr=function(ts){return ts?new Date(ts).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric'}):''};
@@ -3926,7 +3940,7 @@ function renderScooters(){
 // ══ HISTORIAL TICKETS ══
 function renderTicketsHistory(){
   const q=((document.getElementById('ticket-search')||{}).value||'').toLowerCase().trim();
-  const rentals=(LS.get('sr_rentals')||[]).filter(r=>r.status==='returned');
+  const rentals=filtrarVentasPropias((LS.get('sr_rentals')||[]).filter(r=>r.status==='returned'));
   const filtered=q?rentals.filter(r=>(r.clientName||'').toLowerCase().includes(q)||(r.clientDoc||'').toLowerCase().includes(q)||(r.clientPhone||'').toLowerCase().includes(q)):rentals;
   filtered.sort((a,b)=>(b.returnTime||0)-(a.returnTime||0));
   const el=document.getElementById('tickets-list');
@@ -4160,9 +4174,10 @@ function renderCaja(){
   var todayStr=new Date().toISOString().split('T')[0];
   var rentals=LS.get('sr_rentals')||[];
 
-  // Only returned rentals, filtered by stand (gerente sees all)
+  // Only returned rentals — el gerente ve todas, los demás solo las que ellos registraron/despacharon/cobraron
   var rs=rentals.filter(function(r){return r.status==='returned';});
   if(CU.role==='admin'&&CU.stand&&CU.stand!=='Todos')rs=rs.filter(function(r){return r.stand===CU.stand;});
+  rs=filtrarVentasPropias(rs);
 
   // Apply period filter first
   var period=(document.getElementById('caja-period')||{}).value||'today';
@@ -4186,7 +4201,7 @@ function renderCaja(){
   // Stats (filtered by period + stand, not by search/paid filter)
   var allRet=rentals.filter(function(r){
     return r.status==='returned'
-      &&(CU.role==='gerente'||(CU.stand&&r.stand===CU.stand))
+      &&(CU.role==='gerente'||(CU.stand&&r.stand===CU.stand&&esParticipante(r,CU.username)))
       &&periodFilter(r.returnTime,period);
   });
   var pendingCount=allRet.filter(function(r){return!r.paid;}).length;
@@ -6391,8 +6406,9 @@ function renderCierreTurno(){
     :'')
   +(standCerrado?
     '<div style="background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.25);border-radius:10px;padding:.75rem 1rem;margin-bottom:.65rem;font-size:.82rem;color:#25D366">'
-      +'✅ Stand cerrado hoy a las '+new Date(standCerrado.closedAt).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})
+      +'✅ Stand entregado hoy a las '+new Date(standCerrado.closedAt).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})
       +(standCerrado.verifCode?' · Código: <strong>'+standCerrado.verifCode+'</strong>':'')
+      +'<div style="font-size:.72rem;color:var(--muted);margin-top:.25rem">Si algo cambió, puedes actualizarlo y reenviarlo — el mensaje dejará claro que es una actualización.</div>'
     +'</div>'
     :'')
   +(alreadyClosed&&!standCerrado?
@@ -6403,12 +6419,9 @@ function renderCierreTurno(){
 
   // Botones de acción
   +'<div style="display:flex;flex-direction:column;gap:.5rem">'
-    +(puedeEntregar&&!standCerrado?
-      '<button onclick="abrirEntregaStand()" style="background:linear-gradient(135deg,#25D366,#1da851);color:white;border:none;border-radius:12px;padding:.85rem;font-weight:700;font-size:.92rem;cursor:pointer;min-height:50px">📦 Entrega de Stand + Enviar WA</button>'
-      :(standCerrado?
-        '<button disabled style="background:var(--bg3);border:1px solid var(--border);color:var(--muted);border-radius:12px;padding:.85rem;font-weight:700;font-size:.92rem;cursor:not-allowed;min-height:50px;opacity:.5">📦 Stand ya entregado</button>'
-        :'<button disabled style="background:rgba(255,68,68,.1);border:1px solid rgba(255,68,68,.3);color:#ff8888;border-radius:12px;padding:.85rem;font-weight:700;font-size:.92rem;cursor:not-allowed;min-height:50px">🚫 Resuelve pendientes antes de entregar</button>'
-      )
+    +(puedeEntregar?
+      '<button onclick="abrirEntregaStand()" style="background:linear-gradient(135deg,#25D366,#1da851);color:white;border:none;border-radius:12px;padding:.85rem;font-weight:700;font-size:.92rem;cursor:pointer;min-height:50px">'+(standCerrado?'🔄 Actualizar Entrega + Reenviar WA':'📦 Entrega de Stand + Enviar WA')+'</button>'
+      :'<button disabled style="background:rgba(255,68,68,.1);border:1px solid rgba(255,68,68,.3);color:#ff8888;border-radius:12px;padding:.85rem;font-weight:700;font-size:.92rem;cursor:not-allowed;min-height:50px">🚫 Resuelve pendientes antes de entregar</button>'
     )
     +'<button onclick="registrarCierreTurno()" '+(tienePendientes?'disabled style="opacity:.45;cursor:not-allowed;"':'')+' style="background:'+(alreadyClosed?'var(--bg3)':'rgba(0,170,255,.15)')+';border:1px solid '+(alreadyClosed?'var(--border)':'var(--accent)')+';color:'+(alreadyClosed?'var(--muted)':'var(--accent)')+';border-radius:12px;padding:.75rem;font-weight:700;font-size:.85rem;cursor:pointer;min-height:44px">'+(tienePendientes?'🚫 Sin pendientes para cerrar':alreadyClosed?'🔄 Actualizar cierre':'🔒 Registrar cierre de turno')+'</button>'
   +'<button onclick="jalPrintCierre()" style="width:100%;background:rgba(37,211,102,.1);border:1.5px solid #25D366;color:#25D366;border-radius:10px;padding:.75rem;font-weight:700;cursor:pointer;margin-top:.5rem;font-size:.85rem">🖨️ Imprimir cierre de turno</button>'
@@ -6512,6 +6525,10 @@ function abrirEntregaStand(){
   // Código anti-plagio
   var verifCode=genVerifCode(stand,username,today+timeStr.replace(':',''));
 
+  // ¿Ya se había entregado este stand hoy? Si sí, esto es una actualización
+  var cierresPrevios=LS.get('sr_cierres')||[];
+  var entregaPrevia=cierresPrevios.find(function(c){return c.isStandCierre&&c.stand===stand&&c.date===today;});
+
   // Cierres de turno de hoy para este stand
   var cierres=LS.get('sr_cierres')||[];
   var turnosHoy=cierres.filter(function(c){return c.stand===stand&&c.date===today&&!c.isStandCierre;});
@@ -6529,7 +6546,8 @@ function abrirEntregaStand(){
   });
 
   var msg=[
-    '📦 *ENTREGA DE STAND — SCOOTER*',
+    entregaPrevia?'🔄 *CIERRE ACTUALIZADO — SCOOTER*':'📦 *ENTREGA DE STAND — SCOOTER*',
+    entregaPrevia?'_(Este mensaje reemplaza el cierre enviado antes hoy — código anterior: '+(entregaPrevia.verifCode||'—')+')_':false,
     '━━━━━━━━━━━━━━━━━━━━━━━',
     '📍 Stand: *'+stand+'*',
     '👤 Entrega: *'+(CU.fullName||username)+'*',
@@ -6588,10 +6606,13 @@ function enviarEntregaWA(){
 
   // Guardar cierre del stand
   var cierres=LS.get('sr_cierres')||[];
+  var previa=cierres.find(function(c){return c.isStandCierre&&c.stand===(_entregaStand||CU.stand)&&c.date===today;});
+  var isUpdate=!!previa;
   var standEntry={
     id:'STD'+Date.now(),username:CU.username,fullName:CU.fullName||CU.username,
     stand:_entregaStand||CU.stand,date:today,closedAt:Date.now(),
-    isStandCierre:true,verifCode:_entregaVerifCode,waNum:num,
+    isStandCierre:true,verifCode:_entregaVerifCode,waNum:num,isUpdate:isUpdate,
+    updateCount:(previa&&previa.updateCount||0)+(isUpdate?1:0),
     rentals:(LS.get('sr_rentals')||[]).filter(function(r){
       return r.stand===CU.stand&&r.status==='returned'&&r.returnTime&&
         new Date(r.returnTime).toISOString().split('T')[0]===today;
@@ -6604,12 +6625,13 @@ function enviarEntregaWA(){
   // Historial entregas
   var historial=LS.get('sr_entregas')||[];
   historial.push({id:'ENT'+Date.now(),username:CU.username,stand:CU.stand,
-    date:today,sentAt:Date.now(),waNum:num,verifCode:_entregaVerifCode,msg:_entregaData});
+    date:today,sentAt:Date.now(),waNum:num,verifCode:_entregaVerifCode,msg:_entregaData,isUpdate:isUpdate});
   if(historial.length>100)historial=historial.slice(-100);
   LS.set('sr_entregas',historial);
 
+  writeLog(isUpdate?'entrega-update':'entrega','📦 '+(isUpdate?'Entrega de stand actualizada':'Entrega de stand enviada')+': '+(_entregaStand||CU.stand)+' por '+CU.username,{stand:_entregaStand||CU.stand,verifCode:_entregaVerifCode});
   window.open('https://wa.me/'+num+'?text='+encodeURIComponent(_entregaData),'_blank');
-  toast('✅ Entrega enviada — Código: '+_entregaVerifCode);
+  toast((isUpdate?'✅ Cierre actualizado y reenviado':'✅ Entrega enviada')+' — Código: '+_entregaVerifCode);
   closeEntregaModal();
   renderCierreTurno();
   if(typeof renderCierreSupervisor==='function')renderCierreSupervisor();
