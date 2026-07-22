@@ -1598,6 +1598,11 @@ input,textarea{-webkit-user-select:text!important;-moz-user-select:text!importan
     <div id="edit-locked-note" style="display:none;font-size:.75rem;color:var(--amber);padding:.5rem .6rem;background:rgba(255,170,0,.08);border-radius:8px;margin:-.5rem 0 .85rem">🔒 Cantidad y stand no se pueden cambiar: esta renta ya tiene scooters despachados.</div>
     <div class="field"><label>Fecha</label><input type="date" id="edit-date"/></div>
     <div class="field"><label>Hora</label><input type="time" id="edit-hour"/></div>
+    <div id="edit-total-field" class="field" style="display:none">
+      <label>Valor total de la renta ($)</label>
+      <input type="number" id="edit-total" min="0" step="500" inputmode="numeric"/>
+      <div style="font-size:.72rem;color:var(--amber);margin-top:.3rem">⚠️ Esta renta ya está finalizada. Cambiar este valor corrige lo que quedó registrado como cobrado (afecta reportes de ingresos).</div>
+    </div>
     <div style="padding:.85rem 1rem;background:var(--bg3);border:1px solid rgba(255,68,68,.25);border-radius:10px;margin-bottom:1rem;">
       <div style="font-size:.78rem;color:#ff6666;font-weight:600;margin-bottom:.4rem">⚠️ Zona peligrosa</div>
       <button class="btn btn-danger btn-sm" style="width:auto" onclick="deleteRental()">🗑 Eliminar esta tarjeta</button>
@@ -3345,6 +3350,15 @@ function revertDailySnapshot(r){
   st.income=Math.max(0,st.income-(r.total||0));
   LS.set('sr_snapshots',snapshots);
 }
+function adjustDailySnapshotIncome(r,delta){
+  if(!r.returnTime||!delta)return;
+  const day=new Date(r.returnTime).toISOString().split('T')[0];
+  const snapshots=LS.get('sr_snapshots')||{};
+  const st=snapshots[day]&&snapshots[day].stands[r.stand];
+  if(!st)return;
+  st.income=Math.max(0,st.income+delta);
+  LS.set('sr_snapshots',snapshots);
+}
 function showSR(type,msg){const e=document.getElementById('scan-result');e.style.display='block';e.className='alert '+(type==='success'?'alert-success':'alert-error');e.textContent=msg;}
 function toggleCamera(){
   if(camStream){stopCam();document.getElementById('cam-toggle-btn').textContent='📷 Activar cámara';return;}
@@ -4042,6 +4056,14 @@ function openEditCard(id){
   document.getElementById('edit-stand').disabled=locked;
   var lockNote=document.getElementById('edit-locked-note');
   if(lockNote)lockNote.style.display=locked?'block':'none';
+  // Valor total solo editable en rentas ya finalizadas (antes no hay un cobro definitivo que corregir)
+  var totalField=document.getElementById('edit-total-field');
+  if(r.status==='returned'){
+    totalField.style.display='block';
+    document.getElementById('edit-total').value=r.total||0;
+  } else {
+    totalField.style.display='none';
+  }
   document.getElementById('edit-card-modal').classList.add('show');
 }
 function closeEditModal(){document.getElementById('edit-card-modal').classList.remove('show');}
@@ -4066,11 +4088,23 @@ function saveEditRental(){
     r.qty=newQty;
     r.stand=document.getElementById('edit-stand').value||r.stand;
   }
+  var totalMsg='';
+  if(r.status==='returned'){
+    var newTotal=parseFloat(document.getElementById('edit-total').value);
+    if(isNaN(newTotal)||newTotal<0){toast('Valor total inválido');return;}
+    if(newTotal!==r.total){
+      adjustDailySnapshotIncome(r,newTotal-(r.total||0));
+      if(r.originalTotal===undefined)r.originalTotal=r.total;
+      r.total=newTotal;
+      totalMsg=' · valor ajustado a '+fM(newTotal);
+      writeLog('edit-total','💰 Valor de renta #'+(r.consecutivo||'—')+' ('+r.clientName+') ajustado a '+fM(newTotal)+' por '+CU.username,{id:r.id});
+    }
+  }
   r.editedBy=CU.username;r.editedAt=Date.now();
   rentals[idx]=r;LS.set('sr_rentals',rentals);
   closeEditModal();renderCards(currentFilter);refreshDashboard();
   if(typeof renderTicketsHistory==='function')renderTicketsHistory();
-  toast('✔ Tarjeta #'+(r.consecutivo||'—')+' actualizada'+(locked?' (cantidad/stand bloqueados: renta ya en curso o cerrada)':''));
+  toast('✔ Tarjeta #'+(r.consecutivo||'—')+' actualizada'+(locked?' (cantidad/stand bloqueados: renta ya en curso o cerrada)':'')+totalMsg);
 }
 function deleteRental(){
   if(!CU||CU.role!=='gerente'){toast('Solo el gerente puede eliminar tarjetas');return;}
