@@ -3428,7 +3428,7 @@ function printTicket(){
     if(!body) return;
     var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
       + '<style>@page{size:58mm auto;margin:0}body{font-family:"Courier New",monospace;'
-      + 'font-weight:700;font-size:10pt;color:#000;background:#fff;width:50mm;margin:0 auto;padding:1mm;'
+      + 'font-weight:700;font-size:10pt;color:#000;background:#fff;width:100%;padding:1mm;'
       + '-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
       + '*{color:#000!important;background:#fff!important;border-color:#ccc!important;}</style>'
       + '</head><body>' + body.innerHTML + '<'+'/body></html>';
@@ -8194,7 +8194,7 @@ function jalClose(){
 //  2. CONSTRUIR TEXTO PLANO DEL TICKET
 // ─────────────────────────────────────────────
 function jalBuildText(type, data){
-  var W = 32; // Impresora POS-58: papel de 58mm ≈ 32 caracteres por línea (antes calibrado a 42, para 80mm)
+  var W = 24; // Ancho real imprimible confirmado con ticket de prueba (líneas de 24 col. salen completas; 28+ se cortan)
   function center(t){ var p=Math.max(0,Math.floor((W-t.length)/2)); return ' '.repeat(Math.max(0,p))+t; }
   function sep(ch){ return (ch||'-').repeat(W); }
   function row(l,r){ r=String(r); var sp=Math.max(1,W-l.length-r.length); return l+' '.repeat(sp)+r; }
@@ -8427,7 +8427,7 @@ function jalPrintWindow(){
     + '* { margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }'
     + 'html,body { background:#fff; font-family:"Courier New",Courier,monospace;'
     + '  font-size:10pt; font-weight:700; line-height:1.4; color:#000;'
-    + '  width:50mm; margin:0 auto; padding:0 1mm; }'
+    + '  width:100%; }'
     + '@page { size:58mm auto; margin:0; }'
     + 'div { word-break:break-word; }'
     + '</style></head><body>'
@@ -8648,7 +8648,7 @@ function jalPrintDirect(){
     + '* { margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }'
     + 'html,body { font-family:"Courier New",Courier,monospace; font-size:10pt; font-weight:700;'
     + '  line-height:1.4; color:#000; background:#fff;'
-    + '  width:50mm; margin:0 auto; padding:0 1mm; }'
+    + '  width:100%; }'
     + '@page { size:58mm auto; margin:0; }'
     + 'div { color:#000; word-break:break-word; }'
     + '<\/style><\/head><body>'
