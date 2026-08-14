@@ -3427,8 +3427,9 @@ function printTicket(){
     var body = document.getElementById('ticket-body');
     if(!body) return;
     var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
-      + '<style>@page{size:80mm auto;margin:3mm}body{font-family:"Courier New",monospace;'
-      + 'font-size:10pt;color:#000;background:#fff;margin:0;padding:3mm}'
+      + '<style>@page{size:58mm auto;margin:0}body{font-family:"Courier New",monospace;'
+      + 'font-weight:700;font-size:10pt;color:#000;background:#fff;width:50mm;margin:0 auto;padding:1mm;'
+      + '-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
       + '*{color:#000!important;background:#fff!important;border-color:#ccc!important;}</style>'
       + '</head><body>' + body.innerHTML + '<'+'/body></html>';
     var win = window.open('','_blank','width=340,height=600');
@@ -8154,8 +8155,8 @@ document.addEventListener("DOMContentLoaded", function(){ _fbInit(); });
 
 
 // ═══════════════════════════════════════════════════════════════
-//  SISTEMA IMPRESIÓN TÉRMICA — JAL-880L / ESC/POS 80mm
-//  Modo A: window.print() con CSS 80mm  (Android + iPhone)
+//  SISTEMA IMPRESIÓN TÉRMICA — JAL-880L / ESC/POS 58mm
+//  Modo A: window.print() con CSS 58mm  (Android + iPhone)
 //  Modo B: Web Bluetooth ESC/POS directo (Android Chrome)
 // ═══════════════════════════════════════════════════════════════
 
@@ -8193,7 +8194,7 @@ function jalClose(){
 //  2. CONSTRUIR TEXTO PLANO DEL TICKET
 // ─────────────────────────────────────────────
 function jalBuildText(type, data){
-  var W = 42;
+  var W = 32; // Impresora POS-58: papel de 58mm ≈ 32 caracteres por línea (antes calibrado a 42, para 80mm)
   function center(t){ var p=Math.max(0,Math.floor((W-t.length)/2)); return ' '.repeat(Math.max(0,p))+t; }
   function sep(ch){ return (ch||'-').repeat(W); }
   function row(l,r){ r=String(r); var sp=Math.max(1,W-l.length-r.length); return l+' '.repeat(sp)+r; }
@@ -8405,7 +8406,7 @@ function jalBuildText(type, data){
 
 
 // ─────────────────────────────────────────────
-//  3. MODO A — window.print() CSS 80mm
+//  3. MODO A — window.print() CSS 58mm
 // ─────────────────────────────────────────────
 function jalPrintWindow(){
   var txt = _jalTicket ? jalBuildText(_jalTicket.type, _jalTicket.data) : '';
@@ -8420,14 +8421,14 @@ function jalPrintWindow(){
   }).join('');
 
   var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
-    + '<meta name="viewport" content="width=80mm">'
+    + '<meta name="viewport" content="width=58mm">'
     + '<title>Ticket SCOOTER</title>'
     + '<style>'
-    + '* { margin:0; padding:0; box-sizing:border-box; }'
-    + 'body { background:#fff; font-family:"Courier New",Courier,monospace;'
-    + '  font-size:10pt; line-height:1.5; color:#000;'
-    + '  width:72mm; padding:3mm 2mm; }'
-    + '@page { size:80mm auto; margin:2mm; }'
+    + '* { margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }'
+    + 'html,body { background:#fff; font-family:"Courier New",Courier,monospace;'
+    + '  font-size:10pt; font-weight:700; line-height:1.4; color:#000;'
+    + '  width:50mm; margin:0 auto; padding:0 1mm; }'
+    + '@page { size:58mm auto; margin:0; }'
     + 'div { word-break:break-word; }'
     + '</style></head><body>'
     + htmlLines
@@ -8639,15 +8640,16 @@ function jalPrintDirect(){
   var lines = txt.split('\n');
   var htmlLines = lines.map(function(l){
     var esc = l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    return '<div>' + esc + '<\/div>';
+    return '<div style="white-space:pre">' + esc + '<\/div>';
   }).join('');
   var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
+    + '<meta name="viewport" content="width=58mm">'
     + '<style>'
-    + '* { margin:0; padding:0; box-sizing:border-box; }'
-    + 'body { font-family:"Courier New",Courier,monospace; font-size:11pt;'
-    + '  line-height:1.6; color:#000; background:#fff;'
-    + '  width:72mm; padding:3mm 2mm; }'
-    + '@page { size:80mm auto; margin:2mm; }'
+    + '* { margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }'
+    + 'html,body { font-family:"Courier New",Courier,monospace; font-size:10pt; font-weight:700;'
+    + '  line-height:1.4; color:#000; background:#fff;'
+    + '  width:50mm; margin:0 auto; padding:0 1mm; }'
+    + '@page { size:58mm auto; margin:0; }'
     + 'div { color:#000; word-break:break-word; }'
     + '<\/style><\/head><body>'
     + htmlLines
@@ -8773,7 +8775,7 @@ setDT();
 <div id="jal-modal">
   <div id="jal-sheet">
     <div id="jal-handle"></div>
-    <div style="font-size:.82rem;font-weight:700;color:var(--accent);margin-bottom:.75rem">🖨️ Imprimir — JAL-880L 80mm</div>
+    <div style="font-size:.82rem;font-weight:700;color:var(--accent);margin-bottom:.75rem">🖨️ Imprimir — JAL-880L 58mm</div>
     <div id="jal-preview"></div>
     <div style="display:flex;flex-direction:column;gap:.5rem">
       <button onclick="jalPrintWindow()" style="background:#25D366;color:#fff;border:none;border-radius:12px;padding:.85rem;font-size:.9rem;font-weight:800;cursor:pointer">🖨️ Imprimir (sistema)</button>
