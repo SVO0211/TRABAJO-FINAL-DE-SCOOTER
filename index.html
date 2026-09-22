@@ -1102,11 +1102,11 @@ input,textarea{-webkit-user-select:text!important;-moz-user-select:text!importan
           <div class="tab" onclick="filterCards('all',this)">Todos</div>
         </div>
         <input type="text" class="ticket-search" id="card-search" placeholder="🔍  Buscar por código de scooter..." oninput="renderCards(currentFilter)" autocomplete="off"/>
-        <div id="active-scooters-panel" style="display:none;margin-bottom:1rem">
-          <div style="font-size:.78rem;color:var(--muted);margin-bottom:.4rem">🛵 Scooters rentados ahora mismo:</div>
+        <div class="cards-grid" id="cards-container"></div>
+        <div id="active-scooters-panel" style="display:none;margin-top:1.25rem">
+          <div style="font-size:.78rem;color:var(--muted);margin-bottom:.4rem">🛵 Scooters rentados ahora mismo — toca uno para registrar su retorno:</div>
           <div id="active-scooters-list" style="display:flex;flex-direction:column;gap:.35rem"></div>
         </div>
-        <div class="cards-grid" id="cards-container"></div>
       </div>
 
       <!-- VEHÍCULOS EN RENTA -->
@@ -3145,7 +3145,7 @@ function renderActiveScootersPanel(filter,q){
   const cont=document.getElementById('active-scooters-list');
   if(!rows.length){cont.innerHTML='<div style="color:var(--muted);font-size:.82rem">No hay scooters rentados actualmente</div>';return;}
   cont.innerHTML=rows.map(x=>`
-    <div class="sc-row st-out" style="cursor:pointer" onclick="goScanFor('${x.rentalId}','retorno')">
+    <div class="sc-row st-out" style="cursor:pointer" onclick="quickReturn('${x.rentalId}','${x.code}','${(x.client||'').replace(/'/g,"\\'")}')">
       <div class="sc-dot"></div><span class="sc-code">${x.code}</span><span class="sc-time">${x.client} · #${x.consecutivo||'—'}</span>
     </div>`).join('');
 }
@@ -3345,6 +3345,20 @@ function renderScPanel(){
     sumEl.style.display='block';
   }
   else sumEl.style.display='none';
+}
+function quickReturn(rentalId,code,client){
+  if(!confirm('¿Registrar retorno de '+code+' — '+client+'?'))return;
+  const prevMode=scanMode;
+  scanMode='retorno';
+  refreshScanSelect();
+  document.getElementById('scan-rental-select').value=rentalId;
+  document.getElementById('scan-code').value=code;
+  processScan();
+  const resEl=document.getElementById('scan-result');
+  if(resEl&&resEl.textContent)toast(resEl.textContent);
+  scanMode=prevMode;
+  refreshScanSelect();
+  renderCards(currentFilter);
 }
 function processScan(){
   const rentalId=document.getElementById('scan-rental-select').value;
