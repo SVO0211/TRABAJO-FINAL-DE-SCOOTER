@@ -1102,6 +1102,10 @@ input,textarea{-webkit-user-select:text!important;-moz-user-select:text!importan
           <div class="tab" onclick="filterCards('all',this)">Todos</div>
         </div>
         <input type="text" class="ticket-search" id="card-search" placeholder="🔍  Buscar por código de scooter..." oninput="renderCards(currentFilter)" autocomplete="off"/>
+        <div id="active-scooters-panel" style="display:none;margin-bottom:1rem">
+          <div style="font-size:.78rem;color:var(--muted);margin-bottom:.4rem">🛵 Scooters rentados ahora mismo:</div>
+          <div id="active-scooters-list" style="display:flex;flex-direction:column;gap:.35rem"></div>
+        </div>
         <div class="cards-grid" id="cards-container"></div>
       </div>
 
@@ -3132,6 +3136,20 @@ function barColor(ms){
 // Max reference = 30 min for bar width
 function barPct(ms){return Math.min(100,Math.round(ms/1800000*100));}
 
+function renderActiveScootersPanel(filter,q){
+  const panel=document.getElementById('active-scooters-panel');if(!panel)return;
+  if(filter!=='active'){panel.style.display='none';return;}
+  let rows=vhRentaRows();
+  if(q)rows=rows.filter(x=>(x.code||'').toLowerCase().includes(q));
+  panel.style.display='block';
+  const cont=document.getElementById('active-scooters-list');
+  if(!rows.length){cont.innerHTML='<div style="color:var(--muted);font-size:.82rem">No hay scooters rentados actualmente</div>';return;}
+  cont.innerHTML=rows.map(x=>`
+    <div class="sc-row st-out" style="cursor:pointer" onclick="goScanFor('${x.rentalId}','retorno')">
+      <div class="sc-dot"></div><span class="sc-code">${x.code}</span><span class="sc-time">${x.client} · #${x.consecutivo||'—'}</span>
+    </div>`).join('');
+}
+
 function renderCards(filter){
   if(_cardsTimer)clearInterval(_cardsTimer);
   const stand=myStand();let rs=rs4s(stand==='Todos'?'all':stand);
@@ -3139,6 +3157,7 @@ function renderCards(filter){
   else if(filter==='active')rs=rs.filter(r=>r.status==='active');
   const q=((document.getElementById('card-search')||{}).value||'').toLowerCase().trim();
   if(q)rs=rs.filter(r=>{const rawSds=r.scooterDetails;const sds=Array.isArray(rawSds)?rawSds:(rawSds&&typeof rawSds==='object'?Object.values(rawSds):[]);return sds.some(sd=>sd.code&&sd.code.toLowerCase().includes(q));});
+  renderActiveScootersPanel(filter,q);
   rs=rs.sort((a,b)=>a.createdAt-b.createdAt); // oldest first so urgent is on top
   const cont=document.getElementById('cards-container');
   if(!rs.length){cont.innerHTML=`<div style="text-align:center;color:var(--muted);padding:3rem 1rem">${q?'No hay tarjetas con un scooter que coincida con "'+q+'"':'No hay tarjetas en esta categoría'}</div>`;return;}
