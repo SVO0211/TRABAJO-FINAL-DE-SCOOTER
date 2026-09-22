@@ -805,6 +805,7 @@ input,textarea{-webkit-user-select:text!important;-moz-user-select:text!importan
       <div class="nav-item" data-view="waitlist" onclick="gotoView('waitlist')"><span>⏸</span><span>Lista de Espera</span></div>
       <div class="nav-item" data-view="pending" onclick="gotoView('pending')"><span>⊡</span><span>Tarjetas</span></div>
       <div class="nav-item" data-view="scanner" onclick="gotoView('scanner')"><span>⊞</span><span>Escáner</span></div>
+      <div class="nav-item" data-view="vh-renta" onclick="gotoView('vh-renta')"><span>🛴</span><span>Vehículos en Renta</span></div>
       <div class="nav-sep"></div>
       <div class="nav-label">Reportes</div>
       <div class="nav-item" data-view="history" onclick="gotoView('history')"><span>☰</span><span>Historial</span></div>
@@ -1104,6 +1105,13 @@ input,textarea{-webkit-user-select:text!important;-moz-user-select:text!importan
         <div class="cards-grid" id="cards-container"></div>
       </div>
 
+      <!-- VEHÍCULOS EN RENTA -->
+      <div class="view-section" id="view-vh-renta">
+        <div class="page-title">Vehículos en Renta<div class="sub">Todos los scooters rentados ahora mismo</div></div>
+        <input type="text" class="ticket-search" id="vh-renta-search" placeholder="🔍  Buscar por código de scooter, cliente o # tarjeta..." oninput="renderVhRenta()" autocomplete="off"/>
+        <div id="vh-renta-list"></div>
+      </div>
+
       <!-- ESCÁNER -->
       <div class="view-section" id="view-scanner">
         <div class="page-title">Escáner<div class="sub">Registro individual por scooter</div></div>
@@ -1118,6 +1126,10 @@ input,textarea{-webkit-user-select:text!important;-moz-user-select:text!importan
               <div class="field" style="margin-top:.85rem">
                 <label>Renta del cliente</label>
                 <select id="scan-rental-select" onchange="onSelectRental()"><option value="">— Selecciona renta —</option></select>
+              </div>
+              <div class="field" id="scan-vh-wrap" style="display:none;margin-top:.7rem">
+                <label>Vehículos en renta (todos) — compara manualmente</label>
+                <div id="scan-vh-list" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;padding:.35rem"></div>
               </div>
               <div class="scan-code-group">
                 <div class="field"><label>Código del Scooter</label>
@@ -1392,6 +1404,7 @@ input,textarea{-webkit-user-select:text!important;-moz-user-select:text!importan
     <div class="bn-item" id="bn-more-btn" onclick="toggleMobileMenu()"><div class="bn-icon">···</div><div>Más</div></div>
   </nav>
   <div class="bn-more-menu" id="bn-more-menu">
+    <div class="bn-more-item" data-view="vh-renta" onclick="gotoView('vh-renta');closeMobileMenu()"><span class="bmi-icon">🛴</span> Vehículos en Renta</div>
     <div class="bn-more-item" data-view="history" onclick="gotoView('history');closeMobileMenu()"><span class="bmi-icon">☰</span> Historial</div>
     <div class="bn-more-item" data-view="tickets" onclick="gotoView('tickets');closeMobileMenu()"><span class="bmi-icon">🎫</span> Tickets</div>
     <div class="bn-more-item" id="m-nav-caja" data-view="caja" onclick="gotoView('caja');closeMobileMenu()" style="position:relative"><span class="bmi-icon">💵</span> Caja<span id="caja-nav-badge-m" style="display:none;background:#ff4444;color:white;border-radius:20px;padding:.05rem .45rem;font-size:.65rem;font-weight:800;margin-left:.4rem">0</span></div>
@@ -2218,7 +2231,7 @@ function closeMobileMenu(){document.getElementById('bn-more-menu').classList.rem
 function gotoView(v){
   // Operativo restriction: block access to non-operational views
   if(CU&&CU.role==='operativo'){
-    var opAllowed=['dashboard','new-rental','pending','scanner','waitlist','mi-perfil'];
+    var opAllowed=['dashboard','new-rental','pending','scanner','waitlist','mi-perfil','vh-renta'];
     var adminAllowed=['dashboard','new-rental','pending','scanner','caja','history','tickets','clients','stats','export','pricing'];
     if(opAllowed.indexOf(v)===-1){toast('Acceso restringido para tu perfil');return;}
   }
@@ -2236,7 +2249,7 @@ function gotoView(v){
     _db.ref('scooter/sr_rentals').once('value',function(s){_fbApplySnap('sr_rentals',s.val());});
     if(v==='waitlist')_db.ref('scooter/sr_waitlist').once('value',function(s){_fbApplySnap('sr_waitlist',s.val());});
   }
-  const fn={'mi-perfil':renderMiPerfil,dashboard:refreshDashboard,pending:()=>renderCards(currentFilter),history:renderHistory,tickets:renderTicketsHistory,caja:renderCaja,'scooter-hist':renderScooterHist,waitlist:function(){_lockStandSelect('wl-stand');renderWaitlist();renderWaitlistStats();renderWaitlistHistory();},clients:renderClients,users:function(){renderUsers();renderSessionMonitor();if(CU&&CU.role==='gerente')renderCierreSupervisor();},scooters:renderScooters,pricing:renderPricing,'stands-config':renderStandsConfig,stats:renderStats,scanner:()=>{refreshScanSelect();renderScPanel();},'new-rental':function(){setDT();_lockStandSelect('f-stand');setTimeout(function(){var inp=document.getElementById('f-name');if(inp)inp.focus();},300);}};
+  const fn={'mi-perfil':renderMiPerfil,dashboard:refreshDashboard,pending:()=>renderCards(currentFilter),'vh-renta':renderVhRenta,history:renderHistory,tickets:renderTicketsHistory,caja:renderCaja,'scooter-hist':renderScooterHist,waitlist:function(){_lockStandSelect('wl-stand');renderWaitlist();renderWaitlistStats();renderWaitlistHistory();},clients:renderClients,users:function(){renderUsers();renderSessionMonitor();if(CU&&CU.role==='gerente')renderCierreSupervisor();},scooters:renderScooters,pricing:renderPricing,'stands-config':renderStandsConfig,stats:renderStats,scanner:()=>{refreshScanSelect();renderScPanel();},'new-rental':function(){setDT();_lockStandSelect('f-stand');setTimeout(function(){var inp=document.getElementById('f-name');if(inp)inp.focus();},300);}};
   if(fn[v])fn[v]();
 }
 
@@ -3245,6 +3258,46 @@ function refreshScanSelect(){
     return`<option value="${r.id}">${r.clientName} · ${r.stand} · ${info}</option>`;
   }).join('');
   if(cur)sel.value=cur;
+  renderScanVhList();
+}
+// ══ VEHÍCULOS EN RENTA (lista manual para ubicar tarjeta al retornar) ══
+function vhRentaRows(){
+  const stand=myStand();let rs=rs4s(stand==='Todos'?'all':stand);
+  rs=rs.filter(r=>r.status==='active');
+  let rows=[];
+  rs.forEach(r=>{
+    const rawSds=r.scooterDetails;const sds=Array.isArray(rawSds)?rawSds:(rawSds&&typeof rawSds==='object'?Object.values(rawSds):[]);
+    sds.forEach(sd=>{if(sd.code&&!sd.returnTime)rows.push({code:sd.code,client:r.clientName,consecutivo:r.consecutivo,rentalId:r.id,exitTime:sd.exitTime,stand:r.stand});});
+  });
+  return rows.sort((a,b)=>(a.code||'').localeCompare(b.code||''));
+}
+function renderVhRenta(){
+  let rows=vhRentaRows();
+  const q=((document.getElementById('vh-renta-search')||{}).value||'').toLowerCase().trim();
+  if(q)rows=rows.filter(x=>(x.code||'').toLowerCase().includes(q)||(x.client||'').toLowerCase().includes(q)||String(x.consecutivo||'').toLowerCase().includes(q));
+  const cont=document.getElementById('vh-renta-list');
+  if(!rows.length){cont.innerHTML=`<div style="text-align:center;color:var(--muted);padding:3rem 1rem">${q?'Sin coincidencias para "'+q+'"':'No hay scooters en renta actualmente'}</div>`;return;}
+  cont.innerHTML='<div style="display:flex;flex-direction:column;gap:.5rem">'+rows.map(x=>`
+    <div class="rental-card" style="padding:.85rem 1rem;display:flex;align-items:center;gap:.75rem;cursor:pointer" onclick="goScanFor('${x.rentalId}','retorno')">
+      <div class="card-num" style="flex-shrink:0">${x.code}</div>
+      <div style="flex:1;min-width:0">
+        <div class="rc-name" style="margin:0">${x.client}</div>
+        <div class="rc-doc" style="margin:0">Tarjeta #${x.consecutivo||'—'} · ${x.stand}</div>
+      </div>
+      <span class="badge badge-amber" style="font-size:.68rem">🟡 Retorno</span>
+    </div>`).join('')+'</div>';
+}
+function renderScanVhList(){
+  const wrap=document.getElementById('scan-vh-wrap');if(!wrap)return;
+  if(scanMode!=='retorno'){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  const rows=vhRentaRows();
+  const cont=document.getElementById('scan-vh-list');
+  if(!rows.length){cont.innerHTML='<div style="color:var(--muted);font-size:.8rem;text-align:center;padding:1rem">No hay scooters en renta actualmente</div>';return;}
+  cont.innerHTML=rows.map(x=>`
+    <div class="sc-row st-out" style="cursor:pointer" onclick="document.getElementById('scan-rental-select').value='${x.rentalId}';onSelectRental();">
+      <div class="sc-dot"></div><span class="sc-code">${x.code}</span><span class="sc-time">${x.client} · #${x.consecutivo||'—'}</span>
+    </div>`).join('');
 }
 function onSelectRental(){document.getElementById('scan-code').value='';document.getElementById('scan-result').style.display='none';renderScPanel();var rid=document.getElementById('scan-rental-select').value;if(rid){setTimeout(function(){var inp=document.getElementById('scan-code');if(inp){inp.focus();inp.click();}},200);}}
 function renderScPanel(){
