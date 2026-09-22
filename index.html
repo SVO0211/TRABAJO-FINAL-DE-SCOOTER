@@ -1100,6 +1100,7 @@ input,textarea{-webkit-user-select:text!important;-moz-user-select:text!importan
           <div class="tab" onclick="filterCards('active',this)">🛵 Activos</div>
           <div class="tab" onclick="filterCards('all',this)">Todos</div>
         </div>
+        <input type="text" class="ticket-search" id="card-search" placeholder="🔍  Buscar por código de scooter..." oninput="renderCards(currentFilter)" autocomplete="off"/>
         <div class="cards-grid" id="cards-container"></div>
       </div>
 
@@ -3123,9 +3124,11 @@ function renderCards(filter){
   const stand=myStand();let rs=rs4s(stand==='Todos'?'all':stand);
   if(filter==='waiting')rs=rs.filter(r=>r.status==='waiting');
   else if(filter==='active')rs=rs.filter(r=>r.status==='active');
+  const q=((document.getElementById('card-search')||{}).value||'').toLowerCase().trim();
+  if(q)rs=rs.filter(r=>{const rawSds=r.scooterDetails;const sds=Array.isArray(rawSds)?rawSds:(rawSds&&typeof rawSds==='object'?Object.values(rawSds):[]);return sds.some(sd=>sd.code&&sd.code.toLowerCase().includes(q));});
   rs=rs.sort((a,b)=>a.createdAt-b.createdAt); // oldest first so urgent is on top
   const cont=document.getElementById('cards-container');
-  if(!rs.length){cont.innerHTML='<div style="text-align:center;color:var(--muted);padding:3rem 1rem">No hay tarjetas en esta categoría</div>';return;}
+  if(!rs.length){cont.innerHTML=`<div style="text-align:center;color:var(--muted);padding:3rem 1rem">${q?'No hay tarjetas con un scooter que coincida con "'+q+'"':'No hay tarjetas en esta categoría'}</div>`;return;}
   cont.innerHTML=rs.map((r,idx)=>{
     const rawSds=r.scooterDetails;
     const sds=Array.isArray(rawSds)?rawSds:(rawSds&&typeof rawSds==='object'?Object.values(rawSds):[]);
@@ -3137,6 +3140,8 @@ function renderCards(filter){
     const numClass=r.isVIP?'vip-num':'';
     const vipBadge=r.isVIP?'<span class="vip-badge"><span class="vip-star">⭐</span>VIP</span>':'';
     const consec=r.consecutivo||'—';
+    const scooterCodes=sds.map(s=>s.code).join(', ');
+    const mainTitle=scooterCodes||r.clientName;
     // Timer placeholder — updated by ticker
     const timerPlaceholder=`<span class="wait-timer ok" id="wt-${r.id}" data-created="${r.createdAt||Date.now()}" data-status="${r.status}" data-exit="${r.exitTime||0}" style="margin-top:.3rem;max-width:100%">⏱ —</span>`;
     // For active cards: show time since exit (en ruta)
@@ -3145,12 +3150,12 @@ function renderCards(filter){
       <div style="display:flex;align-items:flex-start;gap:.65rem;margin-bottom:.5rem;min-width:0">
         <div class="card-num ${numClass}" style="flex-shrink:0;margin-top:.1rem">${consec}</div>
         <div style="flex:1;min-width:0;overflow:hidden">
-          <div class="rc-name" style="margin:0">${r.clientName} ${vipBadge}</div>
+          <div class="rc-name" style="margin:0">${mainTitle} ${vipBadge}</div>
           ${timerPlaceholder}
         </div>
       </div>
       <div class="wait-bar"><div class="wait-bar-fill" id="${barId}" style="width:0%;background:#00aaff"></div></div>
-      <div class="rc-doc">Doc: ${r.clientDoc}${r.clientPhone?' · 📞 '+r.clientPhone:''} · ${r.qty} sc · ${r.stand}</div>
+      <div class="rc-doc">${r.clientName} · Doc: ${r.clientDoc}${r.clientPhone?' · 📞 '+r.clientPhone:''} · ${r.qty} sc · ${r.stand}</div>
       <div class="rc-info">${badge}</div>
       <div style="font-size:.78rem;color:var(--muted)">Scooters:</div>
       <div class="scooter-list">${pills}</div>
