@@ -3735,7 +3735,7 @@ function renderPricing(){
     var typeColor=isEsp?'var(--amber)':'#33cc66';
 
     var preview=isEsp
-      ?'0-10min: <b style="color:var(--amber)">'+fM(15000)+'</b> · 11:<b style="color:var(--amber)">'+fM(16000)+'</b> · 12:<b style="color:var(--amber)">'+fM(17000)+'</b> · 13-15:<b style="color:var(--amber)">'+fM(18000)+'</b> · 16:<b style="color:var(--amber)">'+fM(19000)+'</b> · 17-20:<b style="color:var(--amber)">'+fM(20000)+'</b> · +<b style="color:var(--amber)">'+fM(1000)+'</b>/min desde el min. 21'
+      ?'0-10min: <b style="color:var(--amber)">'+fM(15000)+'</b> · 15min: <b style="color:var(--amber)">'+fM(18000)+'</b> (+'+fM(600)+'/min) · 20min: <b style="color:var(--amber)">'+fM(20000)+'</b> (+'+fM(400)+'/min) · luego +<b style="color:var(--amber)">'+fM(1000)+'</b>/min'
       :'0-10min: <b style="color:#33cc66">'+fM(t10)+'</b> · 15min: <b style="color:#33cc66">'+fM(t15ref)+'</b> · 20min: <b style="color:#33cc66">'+fM(t20ref)+'</b> · +<b style="color:#33cc66">'+fM(extra)+'</b>/min desde el min. 11';
 
     var ex25=fM(calcSubtotal(25,s));
@@ -5976,7 +5976,7 @@ function purgePastRestDays(){
 // (default $1.000) desde el min. 11, sube parejo sin saltos. Cualquier config antigua ('estandar' o
 // legado numérico) se trata como 'especial' con base $15.000.
 // Tarifa especial: tabla fija de minutos 0-20, igual para todos los stands que la usen
-var TABLA_ESPECIAL={10:15000,11:16000,12:17000,13:18000,14:18000,15:18000,16:19000,17:20000,18:20000,19:20000,20:20000};
+var TABLA_ESPECIAL={10:15000,11:15600,12:16200,13:16800,14:17400,15:18000,16:18400,17:18800,18:19200,19:19600,20:20000};
 function calcSubtotal(mins, stand){
   var db=LS.get('sr_pricing')||{};
   var cfg=db[stand];
@@ -5999,7 +5999,7 @@ function getPricingLabel(stand){
   if(typeof cfg==='number') cfg={type:'especial'};
   if(!cfg) cfg={type:'especial'};
   if(cfg.type==='nueva') return '0-10min:'+fM(cfg.t10||20000)+' · +'+fM(cfg.extra||1000)+'/min desde el min. 11';
-  return '0-10:'+fM(15000)+' · 11:'+fM(16000)+' · 12:'+fM(17000)+' · 13-15:'+fM(18000)+' · 16:'+fM(19000)+' · 17-20:'+fM(20000)+' · +'+fM(1000)+'/min desde el min. 21';
+  return '0-10:'+fM(15000)+' · +'+fM(600)+'/min (11-15, hasta '+fM(18000)+') · +'+fM(400)+'/min (16-20, hasta '+fM(20000)+') · +'+fM(1000)+'/min desde el min. 21';
 }
 
 function setPricingType(stand, type){
