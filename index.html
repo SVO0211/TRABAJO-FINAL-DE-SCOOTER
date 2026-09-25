@@ -3136,6 +3136,7 @@ function barColor(ms){
 // Max reference = 30 min for bar width
 function barPct(ms){return Math.min(100,Math.round(ms/1800000*100));}
 
+function escForOnclick(s){return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');}
 function renderActiveScootersPanel(filter,q){
   const panel=document.getElementById('active-scooters-panel');if(!panel)return;
   if(filter!=='active'){panel.style.display='none';return;}
@@ -3145,7 +3146,7 @@ function renderActiveScootersPanel(filter,q){
   const cont=document.getElementById('active-scooters-list');
   if(!rows.length){cont.innerHTML='<div style="color:var(--muted);font-size:.82rem">No hay scooters rentados actualmente</div>';return;}
   cont.innerHTML=rows.map(x=>`
-    <div class="sc-row st-out" style="cursor:pointer" onclick="quickReturn('${x.rentalId}','${x.code}','${(x.client||'').replace(/'/g,"\\'")}')">
+    <div class="sc-row st-out" style="cursor:pointer" onclick="quickReturn('${x.rentalId}','${escForOnclick(x.code)}','${escForOnclick(x.client)}')">
       <div class="sc-dot"></div><span class="sc-code">${x.code}</span><span class="sc-time">${x.client} · #${x.consecutivo||'—'}</span>
     </div>`).join('');
 }
