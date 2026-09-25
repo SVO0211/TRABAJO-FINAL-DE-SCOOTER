@@ -1699,6 +1699,7 @@ input,textarea{-webkit-user-select:text!important;-moz-user-select:text!importan
 </div>
 <div id="toast"></div>
 
+<script src="jsqr.min.js"></script>
 <script>
 // ═══ POLYFILLS CROSS-BROWSER ═══
 (function(){
@@ -2206,7 +2207,7 @@ function setupPWA(){
   window.addEventListener('appinstalled',()=>{document.getElementById('pwa-banner').style.display='none';toast('✔ App instalada — ábrela desde tu pantalla de inicio');});
   // Register SW for offline + camera permissions
   if('serviceWorker' in navigator){
-    const sw=`const C='sc-v2';self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['.'])));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim();});self.addEventListener('fetch',e=>{e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)||caches.match('.')));});`;
+    const sw=`const C='sc-v3';self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['.','jsqr.min.js'])));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim();});self.addEventListener('fetch',e=>{e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)||caches.match('.')));});`;
     const swUrl=URL.createObjectURL(new Blob([sw],{type:'application/javascript'}));
     navigator.serviceWorker.register(swUrl,{scope:'./'}).catch(()=>{});
   }
@@ -3486,10 +3487,50 @@ function showSR(type,msg){const e=document.getElementById('scan-result');e.style
 function toggleCamera(){
   if(camStream){stopCam();document.getElementById('cam-toggle-btn').textContent='📷 Activar cámara';return;}
   navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}})
-    .then(s=>{camStream=s;document.getElementById('cam-video').srcObject=s;document.getElementById('video-container').style.display='block';document.getElementById('cam-toggle-btn').textContent='✕ Cerrar cámara';})
+    .then(s=>{camStream=s;document.getElementById('cam-video').srcObject=s;document.getElementById('video-container').style.display='block';document.getElementById('cam-toggle-btn').textContent='✕ Cerrar cámara';startQrScan();})
     .catch(()=>toast('No se pudo acceder a la cámara. Instala la app para permisos nativos.'));
 }
-function stopCam(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}document.getElementById('video-container').style.display='none';}
+function stopCam(){if(camStream){camStream.getTracks().forEach(t=>t.stop());camStream=null;}document.getElementById('video-container').style.display='none';stopQrScan();}
+
+// ══ LECTOR DE QR (jsQR) ══
+var _qrCanvas=null,_qrCtx=null,_qrLoopId=null,_lastQrCode=null,_lastQrTime=0;
+function startQrScan(){
+  if(typeof jsQR!=='function'){console.warn('jsQR no disponible');return;}
+  if(!_qrCanvas){_qrCanvas=document.createElement('canvas');_qrCtx=_qrCanvas.getContext('2d',{willReadFrequently:true});}
+  _lastQrCode=null;_lastQrTime=0;
+  function tick(){
+    if(!camStream){_qrLoopId=null;return;}
+    var video=document.getElementById('cam-video');
+    if(video&&video.readyState>=2&&video.videoWidth){
+      var vw=video.videoWidth,vh=video.videoHeight;
+      var scale=Math.min(1,480/vw);
+      var cw=Math.max(1,Math.round(vw*scale)),ch=Math.max(1,Math.round(vh*scale));
+      if(_qrCanvas.width!==cw||_qrCanvas.height!==ch){_qrCanvas.width=cw;_qrCanvas.height=ch;}
+      try{
+        _qrCtx.drawImage(video,0,0,cw,ch);
+        var img=_qrCtx.getImageData(0,0,cw,ch);
+        var result=jsQR(img.data,cw,ch,{inversionAttempts:'dontInvert'});
+        if(result&&result.data){
+          var text=result.data.trim();var now=Date.now();
+          if(text&&(text!==_lastQrCode||now-_lastQrTime>2500)){
+            _lastQrCode=text;_lastQrTime=now;
+            onQrDetected(text);
+          }
+        }
+      }catch(e){}
+    }
+    _qrLoopId=requestAnimationFrame(tick);
+  }
+  _qrLoopId=requestAnimationFrame(tick);
+}
+function stopQrScan(){if(_qrLoopId){cancelAnimationFrame(_qrLoopId);_qrLoopId=null;}_lastQrCode=null;}
+function onQrDetected(text){
+  var inp=document.getElementById('scan-code');
+  if(!inp)return;
+  inp.value=text;
+  if(navigator.vibrate)navigator.vibrate(80);
+  processScan();
+}
 
 // ══ TICKET ══
 var _currentTicketRental = null;
