@@ -214,9 +214,9 @@ tr:hover td{background:rgba(0,170,255,.03);}
 .cam-btn{width:100%;background:var(--bg3);border:1.5px dashed var(--accent);border-radius:10px;padding:.75rem;font-family:var(--font);font-size:.9rem;color:var(--accent);cursor:pointer;text-align:center;margin-bottom:.75rem;-webkit-transition:all .15s;transition:all .15s;-webkit-transition:all .15s;transition:all .15s;}
 .cam-btn:hover{background:rgba(0,170,255,.08);}
 #video-container{display:none;border-radius:12px;overflow:hidden;border:2px solid var(--accent);position:relative;margin-bottom:.75rem;box-shadow:var(--glow);}
-#video-container video{width:100%;display:block;max-height:240px;object-fit:cover;-o-object-fit:cover;}
+#video-container video{width:100%;display:block;height:70vh;max-height:640px;object-fit:cover;-o-object-fit:cover;}
 #scan-overlay{position:absolute;top:0;right:0;bottom:0;left:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:.5rem;}
-.scan-frame{width:220px;height:100px;border:2px solid var(--accent);border-radius:10px;box-shadow:0 0 0 4000px rgba(0,8,20,.6),0 0 20px var(--accent);}
+.scan-frame{width:min(78vw,320px);aspect-ratio:1/1;border:2px solid var(--accent);border-radius:16px;box-shadow:0 0 0 4000px rgba(0,8,20,.6),0 0 20px var(--accent);}
 .scan-frame-label{color:var(--accent);font-size:.75rem;font-family:var(--mono);letter-spacing:2px;text-shadow:0 0 8px var(--accent);}
 
 /* ═══ SC STATUS ═══ */
@@ -411,6 +411,7 @@ tr:hover td{background:rgba(0,170,255,.03);}
   #users-list{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;}
   #scooters-tbody td,#scooters-tbody th{white-space:nowrap;}
   .scanner-wrap{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;}
+  #video-container video{height:50vh;max-height:420px;}
   #toast{bottom:1.5rem;}
   .modal-backdrop{-webkit-box-align:center;-ms-flex-align:center;align-items:center;}
   .modal{border-radius:16px;max-width:440px;padding:1.5rem;}
@@ -1144,7 +1145,7 @@ input,textarea{-webkit-user-select:text!important;-moz-user-select:text!importan
               <button class="cam-btn" onclick="toggleCamera()" id="cam-toggle-btn">📷 Activar cámara</button>
               <div id="video-container">
                 <video id="cam-video" autoplay playsinline muted></video>
-                <div id="scan-overlay"><div class="scan-frame"></div><div class="scan-frame-label">APUNTA AL CÓDIGO DE BARRAS</div></div>
+                <div id="scan-overlay"><div class="scan-frame"></div><div class="scan-frame-label">APUNTA AL CÓDIGO QR</div></div>
               </div>
               <div id="scan-result" style="display:none;margin-top:.5rem"></div>
             </div>
