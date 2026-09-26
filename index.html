@@ -8645,7 +8645,7 @@ async function jalBluetoothPrint(){
     // Construir y enviar ESC/POS
     var txt   = jalBuildText(_jalTicket.type, _jalTicket.data);
     var bytes = jalToEscPos(txt);
-    var CHUNK = 512;
+    var CHUNK = 20; // Limite seguro de un paquete BLE sin negociar MTU; en fragmentos grandes el resto del ticket se descarta silenciosamente y sale recortado
     for(var i=0; i<bytes.length; i+=CHUNK){
       var slice = bytes.slice(i, i+CHUNK);
       try{ await _jalChar.writeValueWithoutResponse(slice); }
