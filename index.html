@@ -8645,12 +8645,23 @@ async function jalBluetoothPrint(){
     // Construir y enviar ESC/POS
     var txt   = jalBuildText(_jalTicket.type, _jalTicket.data);
     var bytes = jalToEscPos(txt);
-    var CHUNK = 20; // Limite seguro de un paquete BLE sin negociar MTU; en fragmentos grandes el resto del ticket se descarta silenciosamente y sale recortado
+    // Fragmentos pequenos (limite seguro de un paquete BLE sin negociar MTU) enviados
+    // con "write" (con respuesta/ACK) cuando el characteristic lo soporta: el await no
+    // resuelve hasta que la impresora confirma haber recibido el paquete, lo que evita
+    // que su buffer se desborde y descarte bytes en silencio (la causa del recorte).
+    // Si solo soporta "writeWithoutResponse" (sin ACK posible), se compensa con una
+    // pausa mas larga entre paquetes.
+    var canAck = !!(_jalChar.properties && _jalChar.properties.write);
+    var CHUNK = 20;
     for(var i=0; i<bytes.length; i+=CHUNK){
       var slice = bytes.slice(i, i+CHUNK);
-      try{ await _jalChar.writeValueWithoutResponse(slice); }
-      catch(e){ await _jalChar.writeValue(slice); }
-      await new Promise(function(r){ setTimeout(r,60); });
+      if(canAck){
+        try{ await _jalChar.writeValue(slice); }
+        catch(e){ await _jalChar.writeValueWithoutResponse(slice); await new Promise(function(r){ setTimeout(r,120); }); }
+      } else {
+        await _jalChar.writeValueWithoutResponse(slice);
+        await new Promise(function(r){ setTimeout(r,120); });
+      }
     }
     toast('✅ Impreso en JAL-880L');
     jalClose();
