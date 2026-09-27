@@ -2237,11 +2237,14 @@ function closeMobileMenu(){document.getElementById('bn-more-menu').classList.rem
 
 // ══ NAV ══
 function gotoView(v){
-  // Operativo restriction: block access to non-operational views
+  // Restriccion de vistas por rol: operativo y admin (cajero) solo acceden a
+  // lo suyo; users/scooters/stands-config quedan exclusivas de gerente.
   if(CU&&CU.role==='operativo'){
     var opAllowed=['dashboard','new-rental','pending','scanner','waitlist','mi-perfil','vh-renta'];
-    var adminAllowed=['dashboard','new-rental','pending','scanner','caja','history','tickets','clients','stats','export','pricing'];
     if(opAllowed.indexOf(v)===-1){toast('Acceso restringido para tu perfil');return;}
+  } else if(CU&&CU.role==='admin'){
+    var adminAllowed=['dashboard','new-rental','pending','scanner','waitlist','mi-perfil','vh-renta','caja','history','tickets','clients','stats','export','pricing','scooter-hist'];
+    if(adminAllowed.indexOf(v)===-1){toast('Acceso restringido para tu perfil');return;}
   }
   if(v!=='pending'&&_cardsTimer){clearInterval(_cardsTimer);_cardsTimer=null;}
   if(v!=='waitlist'&&_wlTimer){clearInterval(_wlTimer);_wlTimer=null;}
@@ -2282,8 +2285,8 @@ function fM(v){return'$'+Math.round(v).toLocaleString('es-CO');}
 function myStand(){return (CU&&CU.stand)?CU.stand:getStands()[0];}
 function rs4s(stand){
   var rs=LS.get('sr_rentals')||[];
-  // Operativo always restricted to their own stand
-  if(CU&&CU.role==='operativo'&&CU.stand&&CU.stand!=='Todos'){
+  // Cualquier rol que no sea gerente queda restringido a su propia sede
+  if(CU&&CU.role!=='gerente'&&CU.stand&&CU.stand!=='Todos'){
     rs=rs.filter(function(r){return r.stand===CU.stand;});
   }
   if(!stand||stand==='all'||stand==='Todos')return rs;
@@ -2574,6 +2577,7 @@ function renderVipAlerts(){
 
 // ══ ARQUEO DE TURNO ══
 function renderArqueo(){
+  if(!CU||CU.role!=='gerente')return;
   var stand=(document.getElementById('arqueo-stand')||{}).value||'all';
   var dateEl=document.getElementById('arqueo-date');
   var day=dateEl&&dateEl.value?dateEl.value:new Date().toISOString().split('T')[0];
@@ -2624,6 +2628,7 @@ function renderArqueo(){
 
 // ══ LOG RENDERER ══
 function renderLog(){
+  if(!CU||CU.role!=='gerente')return;
   var filterUser=(document.getElementById('log-filter-user')||{}).value||'all';
   var filterType=(document.getElementById('log-filter-type')||{}).value||'all';
   var log=getAuditLog().slice().reverse();
@@ -3011,6 +3016,7 @@ function printContratoActivo(){
 function viewContrato(rentalId){
   var ct=(LS.get('sr_contratos')||[]).find(function(c){return c.rentalId===rentalId;});
   if(!ct){toast('Contrato no encontrado');return;}
+  if(CU&&CU.role!=='gerente'&&CU.stand&&CU.stand!=='Todos'&&ct.stand!==CU.stand){toast('No tienes acceso a este contrato');return;}
   _viewingContrato=ct;
   var d=new Date(ct.signedAt);
   var dd=String(d.getDate()).padStart(2,'0'),mm=String(d.getMonth()+1).padStart(2,'0'),yyyy=d.getFullYear();
@@ -3043,6 +3049,7 @@ function switchTicketTab(tab,el){
 function renderContratosHistory(){
   var q=((document.getElementById('contratos-search')||{}).value||'').toLowerCase().trim();
   var contratos=LS.get('sr_contratos')||[];
+  if(CU&&CU.role!=='gerente'&&CU.stand&&CU.stand!=='Todos')contratos=contratos.filter(function(c){return c.stand===CU.stand;});
   var filtered=q?contratos.filter(function(c){
     return(c.clientName||'').toLowerCase().includes(q)||(c.clientDoc||'').toLowerCase().includes(q)||(c.clientPhone||'').toLowerCase().includes(q);
   }):contratos;
@@ -3375,7 +3382,9 @@ function processScan(){
   const r=rentals[rIdx];
   const _rawSds=r.scooterDetails;
   r.scooterDetails=Array.isArray(_rawSds)?_rawSds:(_rawSds&&typeof _rawSds==='object'?Object.values(_rawSds):[]);
-  const scIdx=scooters.findIndex(s=>s.code.toUpperCase()===code||code.startsWith(s.code.toUpperCase())||s.code.toUpperCase().startsWith(code));
+  // No-gerente: nunca puede operar sobre el inventario de otra sede
+  const scanOwnStand=(CU&&CU.role!=='gerente'&&CU.stand&&CU.stand!=='Todos')?CU.stand:null;
+  const scIdx=scooters.findIndex(s=>(!scanOwnStand||s.stand===scanOwnStand)&&(s.code.toUpperCase()===code||code.startsWith(s.code.toUpperCase())||s.code.toUpperCase().startsWith(code)));
   if(scIdx===-1){showSR('error',`"${code}" no encontrado. Verifica que esté registrado en Scooters.`);return;}
   const sc=scooters[scIdx];
   if(scanMode==='salida'){
@@ -3717,8 +3726,11 @@ function exportData(){
     ws['!cols']=cols;
     var wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,ws,'Rentas');
-    // Also add waitlist sheet
+    // Also add waitlist sheet — misma restriccion de sede que las rentas
     var wl=LS.get('sr_waitlist')||[];
+    if(CU&&CU.role!=='gerente'&&CU.stand&&CU.stand!=='Todos'){
+      wl=wl.filter(function(e){return e.stand===CU.stand;});
+    }
     if(wl.length){
       var wlRows=wl.map(function(e){return{
         'ID':e.id,'Nombre':e.name,'Documento':e.doc,'Teléfono':e.phone||'',
@@ -3915,6 +3927,7 @@ function deleteUser(u){
   renderUsers();toast('Usuario eliminado');
 }
 function renderUsers(){
+  if(!CU||CU.role!=='gerente'){toast('Acceso restringido para tu perfil');gotoView('dashboard');return;}
   const us=LS.get('sr_users')||[];const avs=LS.get('sr_avatars')||{};
   const stands=getStands();
   const isG=CU&&CU.role==='gerente';
@@ -4041,14 +4054,19 @@ function handleAvatarUpload(event){
 
 // ══ SCOOTERS ══
 function addScooter(){
+  if(!CU||CU.role!=='gerente'){toast('Solo el gerente puede modificar el inventario');return;}
   const code=document.getElementById('ns-code').value.trim().toUpperCase();const stand=document.getElementById('ns-stand').value;
   if(!code){toast('Ingresa un código');return;}
   const sc=LS.get('sr_scooters')||[];if(sc.find(s=>s.code===code)){toast('Código ya existe');return;}
   sc.push({code,stand,status:'available'});LS.set('sr_scooters',sc);
   document.getElementById('ns-code').value='';toast('✔ Scooter registrado');renderScooters();
 }
-function deleteScooter(code){if(!confirm('¿Eliminar scooter "'+code+'"?'))return;LS.set('sr_scooters',(LS.get('sr_scooters')||[]).filter(s=>s.code!==code));renderScooters();toast('Scooter eliminado');}
+function deleteScooter(code){
+  if(!CU||CU.role!=='gerente'){toast('Solo el gerente puede modificar el inventario');return;}
+  if(!confirm('¿Eliminar scooter "'+code+'"?'))return;LS.set('sr_scooters',(LS.get('sr_scooters')||[]).filter(s=>s.code!==code));renderScooters();toast('Scooter eliminado');
+}
 function renderScooters(){
+  if(!CU||CU.role!=='gerente'){toast('Acceso restringido para tu perfil');gotoView('dashboard');return;}
   const sc=LS.get('sr_scooters')||[];
   document.getElementById('scooters-tbody').innerHTML=sc.map(s=>{
     const b=s.status==='available'?'<span class="badge badge-green">Disponible</span>':'<span class="badge badge-amber">En uso</span>';
@@ -4060,7 +4078,8 @@ function renderScooters(){
 // ══ HISTORIAL TICKETS ══
 function renderTicketsHistory(){
   const q=((document.getElementById('ticket-search')||{}).value||'').toLowerCase().trim();
-  const rentals=filtrarVentasPropias((LS.get('sr_rentals')||[]).filter(r=>r.status==='returned'));
+  let rentals=filtrarVentasPropias((LS.get('sr_rentals')||[]).filter(r=>r.status==='returned'));
+  if(CU&&CU.role!=='gerente'&&CU.stand&&CU.stand!=='Todos')rentals=rentals.filter(r=>r.stand===CU.stand);
   const filtered=q?rentals.filter(r=>(r.clientName||'').toLowerCase().includes(q)||(r.clientDoc||'').toLowerCase().includes(q)||(r.clientPhone||'').toLowerCase().includes(q)):rentals;
   filtered.sort((a,b)=>(b.returnTime||0)-(a.returnTime||0));
   const el=document.getElementById('tickets-list');
@@ -4101,14 +4120,22 @@ function showTicketFromId(id){
 function renderClients(){
   const q=((document.getElementById('client-search')||{}).value||'').toLowerCase().trim();
   const clientsDB=LS.get('sr_clients')||{};
-  const rentals=LS.get('sr_rentals')||[];
+  const isG=CU&&CU.role==='gerente';
+  let rentals=LS.get('sr_rentals')||[];
+  // No-gerente: solo rentas y clientes de su propia sede — ni la lista de
+  // clientes, ni sus visitas/gasto, ni las sedes que ha frecuentado deben
+  // mezclar datos de otras sedes.
+  if(!isG&&CU&&CU.stand&&CU.stand!=='Todos')rentals=rentals.filter(r=>r.stand===CU.stand);
   let clients=Object.values(clientsDB);
+  if(!isG&&CU&&CU.stand&&CU.stand!=='Todos'){
+    const docsInStand=new Set(rentals.map(r=>r.clientDoc));
+    clients=clients.filter(c=>docsInStand.has(c.doc));
+  }
   if(q)clients=clients.filter(c=>(c.name||'').toLowerCase().includes(q)||(c.doc||'').toLowerCase().includes(q)||(c.phone||'').toLowerCase().includes(q));
   // Sort: VIP first, then by firstSeen
   clients.sort((a,b)=>(b.vip?1:0)-(a.vip?1:0)||((a.firstSeen||0)-(b.firstSeen||0)));
   const el=document.getElementById('clients-list');
   if(!clients.length){el.innerHTML='<div style="text-align:center;color:var(--muted);padding:3rem 1rem">'+(q?'Sin resultados para "'+q+'"':'Sin clientes registrados aún')+'</div>';return;}
-  const isG=CU&&CU.role==='gerente';
   el.innerHTML=clients.map(c=>{
     const cRentals=rentals.filter(r=>r.clientDoc===c.doc);
     const done=cRentals.filter(r=>r.status==='returned');
@@ -4117,7 +4144,7 @@ function renderClients(){
     const daysSince=c.firstSeen?Math.floor((Date.now()-c.firstSeen)/86400000):0;
     const timeLabel=daysSince===0?'Hoy':daysSince===1?'Ayer':daysSince+'d siendo cliente';
     const vipBadge=c.vip?'<span class="vip-badge"><span class="vip-star">⭐</span>VIP '+(c.vipDiscount||0)+'%</span>':'';
-    const stands=(c.stands||[]).map(s=>`<span class="badge badge-purple" style="font-size:.65rem">${s}</span>`).join(' ');
+    const stands=isG?(c.stands||[]).map(s=>`<span class="badge badge-purple" style="font-size:.65rem">${s}</span>`).join(' '):'';
     const vipBtn=isG?(c.vip?
       `<button class="btn btn-sm btn-ghost" style="font-size:.75rem;padding:.35rem .7rem;min-height:36px;border-color:#ffd700;color:#ffd700" onclick="toggleVIP('${c.doc}',event)">⭐ Editar VIP</button>`:
       `<button class="btn btn-sm btn-ghost" style="font-size:.75rem;padding:.35rem .7rem;min-height:36px" onclick="toggleVIP('${c.doc}',event)">Hacer VIP</button>`
@@ -4145,6 +4172,7 @@ function renderClients(){
 // ══ VIP MANAGEMENT ══
 function toggleVIP(doc,event){
   event.stopPropagation();
+  if(!CU||CU.role!=='gerente'){toast('Solo el gerente puede modificar el estatus VIP');return;}
   const clientsDB=LS.get('sr_clients')||{};
   const c=clientsDB[doc];if(!c)return;
   if(c.vip){
@@ -4551,7 +4579,7 @@ function periodFilter(ts, period){
 function renderScooterHist(){
   var standFilter=(document.getElementById('sh-stand-filter')||{}).value||'all';
   var period=(document.getElementById('sh-period')||{}).value||'today';
-  if(CU&&CU.role==='admin'&&CU.stand&&CU.stand!=='Todos')standFilter=CU.stand;
+  if(CU&&CU.role!=='gerente'&&CU.stand&&CU.stand!=='Todos')standFilter=CU.stand;
 
   var rentals=LS.get('sr_rentals')||[];
   var scooters=LS.get('sr_scooters')||[];
@@ -4774,6 +4802,7 @@ function convertWaitlistToRental(id){
 
 function updateWlBadge(){
   var wl=LS.get('sr_waitlist')||[];
+  if(CU&&CU.role!=='gerente'&&CU.stand&&CU.stand!=='Todos')wl=wl.filter(function(x){return x.stand===CU.stand;});
   var waiting=wl.filter(function(x){return x.status==='waiting';});
   var count=waiting.length;
   // Nav badge
@@ -4929,10 +4958,15 @@ var _alarmSentSet=new Set();
 
 function openAlarmModal(){
   var wl=LS.get('sr_waitlist')||[];
+  var scooters=LS.get('sr_scooters')||[];
+  // No-gerente: solo clientes/scooters de su propia sede, nunca de otras
+  if(CU&&CU.role!=='gerente'&&CU.stand&&CU.stand!=='Todos'){
+    wl=wl.filter(function(x){return x.stand===CU.stand;});
+    scooters=scooters.filter(function(s){return s.stand===CU.stand;});
+  }
   var waiting=wl.filter(function(x){return x.status==='waiting';});
   if(!waiting.length){toast('No hay clientes en espera');return;}
 
-  var scooters=LS.get('sr_scooters')||[];
   var availByStand={};
   scooters.forEach(function(s){
     if(s.status==='available')availByStand[s.stand]=(availByStand[s.stand]||0)+1;
@@ -4967,9 +5001,9 @@ function openAlarmModal(){
   // Build entry cards
   var html=waiting.map(function(e){
     var avail=availByStand[e.stand]||0;
-    var canSend=hasPhone&&avail>=e.qty;
     var waited=Math.floor((Date.now()-e.createdAt)/60000);
     var hasPhone=!!e.phone;
+    var canSend=hasPhone&&avail>=e.qty;
     var phone=hasPhone?(e.phone||'').replace(/\D/g,''):'';
     if(phone.length===10&&phone.startsWith('3'))phone='57'+phone;
     var msg=hasPhone?buildWlNotifyMsg(e,avail):'';
@@ -5056,7 +5090,7 @@ function updateAlarmProgress(){
 
 function markAllSent(){
   _alarmEntries.forEach(function(e){
-    if(e.phone&&(avail2&&avail2[e.stand]>=e.qty||true))markSent(e.id);
+    if(e.phone)markSent(e.id);
   });
   updateAlarmProgress();
 }
@@ -5136,7 +5170,9 @@ function renderWaitlistStats(){
   var dashEl=document.getElementById('dash-wl-inner');
   var dashPanel=document.getElementById('dash-wl-stats');
   if(dashEl&&dashPanel){
-    var todayWl=(LS.get('sr_waitlist')||[]).filter(function(w){
+    var todayWlSrc=LS.get('sr_waitlist')||[];
+    if(CU&&CU.role!=='gerente'&&CU.stand&&CU.stand!=='Todos')todayWlSrc=todayWlSrc.filter(function(w){return w.stand===CU.stand;});
+    var todayWl=todayWlSrc.filter(function(w){
       return w.createdAt&&new Date(w.createdAt).toISOString().split('T')[0]===new Date().toISOString().split('T')[0];
     });
     var twTotal=todayWl.length;
@@ -6148,6 +6184,7 @@ function updateCajaBadge(){
 
 // ══ VER PERFIL EMPLEADO ══
 function verPerfilEmpleado(username){
+  if(!CU||CU.role!=='gerente'){toast('Solo el gerente puede ver el perfil de otros empleados');return;}
   var us=LS.get('sr_users')||[];
   var user=us.find(function(u){return u.username===username;})||{};
   var avs=LS.get('sr_avatars')||{};
@@ -8088,15 +8125,11 @@ function completarLogin(found, stand){
   });
 
   populateStandSelects();
-  if(CU.stand!=='Todos'){
-    var fst=document.getElementById('f-stand');if(fst)fst.value=CU.stand;
-    var daf=document.getElementById('dash-stand-filter');if(daf)daf.value=CU.stand;
-    var hsf=document.getElementById('hist-stand-filter');if(hsf)hsf.value=CU.stand;
-    if(CU.role!=='gerente'){
-      var hf=document.getElementById('hist-stand-filter');if(hf)hf.disabled=true;
-      var dsf=document.getElementById('dash-stand-filter');if(dsf)dsf.disabled=true;
-      var ssf=document.getElementById('stats-stand-filter');if(ssf){ssf.value=CU.stand;ssf.disabled=true;}
-    }
+  if(CU.role!=='gerente'&&CU.stand&&CU.stand!=='Todos'){
+    ['dash-stand-filter','hist-stand-filter','stats-stand-filter','export-stand','sh-stand-filter'].forEach(function(id){
+      var el=document.getElementById(id);if(!el)return;
+      el.value=CU.stand;el.disabled=true;
+    });
   }
 
   // Show sync indicator and button
