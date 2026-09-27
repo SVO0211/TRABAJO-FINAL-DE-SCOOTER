@@ -8771,9 +8771,32 @@ function jalToEscPos(text){
   var maxLen = 0;
   lines.forEach(function(ln){ if(ln.text.length > maxLen) maxLen = ln.text.length; });
   maxLen = Math.min(maxLen, CAP);
+  // Si una linea centrada no cabe en el ancho (mas larga que cualquier otra
+  // linea del ticket), se parte en varias por palabra en vez de imprimirla
+  // completa pegada a la izquierda — asi cada linea resultante tambien
+  // queda centrada, sin depender de como la impresora decida cortarla.
+  function wrapToWidth(txt, width){
+    if(txt.length <= width) return [txt];
+    var words = txt.split(' ');
+    var out = [], cur = '';
+    words.forEach(function(w){
+      if(!cur){ cur = w; }
+      else if((cur+' '+w).length <= width){ cur += ' '+w; }
+      else { out.push(cur); cur = w; }
+    });
+    if(cur) out.push(cur);
+    var final = [];
+    out.forEach(function(l){
+      while(l.length > width){ final.push(l.slice(0,width)); l = l.slice(width); }
+      final.push(l);
+    });
+    return final;
+  }
   lines.forEach(function(ln){
-    var pad = ln.centered ? Math.max(0, Math.floor((maxLen - ln.text.length)/2)) : 0;
-    var padded = ' '.repeat(pad) + ln.text;
+    var subLines = ln.centered ? wrapToWidth(ln.text, maxLen) : [ln.text];
+    subLines.forEach(function(sub){
+    var pad = ln.centered ? Math.max(0, Math.floor((maxLen - sub.length)/2)) : 0;
+    var padded = ' '.repeat(pad) + sub;
     for(var i=0; i<padded.length; i++){
       var ch = padded[i];
       var code = padded.charCodeAt(i);
@@ -8786,6 +8809,7 @@ function jalToEscPos(text){
       }
     }
     bytes.push(0x0A); // salto de linea
+    });
   });
 
   // Avance y corte (reducido para no desperdiciar papel)
