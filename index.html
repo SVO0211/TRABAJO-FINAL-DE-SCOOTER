@@ -8747,13 +8747,25 @@ function jalToEscPos(text){
   // Los emojis no existen en el juego de caracteres de la impresora termica
   // (imprime con un codigo de pagina de un solo byte, no Unicode a color):
   // en vez de mostrar "?" por cada uno, se quitan del texto antes de medir
-  // el ancho y de imprimir, junto con el espacio extra que dejan.
+  // el ancho y de imprimir, junto con el espacio extra que dejan. Se filtra
+  // por rango de codepoint (no con \p{Extended_Pictographic}) porque esa
+  // propiedad depende de la version de Unicode del navegador/WebView del
+  // celular, y en equipos con Chrome/WebView desactualizado puede no
+  // reconocer emojis mas nuevos y dejarlos pasar como "?".
+  function jalStripEmoji(s){
+    return Array.from(s).filter(function(ch){
+      var cp = ch.codePointAt(0);
+      if(cp===0xFE0F || cp===0x200D) return false;              // selector de variante / ZWJ
+      if(cp>=0x1F300 && cp<=0x1FAFF) return false;               // pictogramas (mayoria de emojis)
+      if(cp>=0x2600  && cp<=0x27BF)  return false;                // simbolos varios / dingbats
+      if(cp>=0x2300  && cp<=0x23FF)  return false;                // tecnico varios (relojes ⏱⏰⏳)
+      if(cp>=0x2B00  && cp<=0x2BFF)  return false;                // simbolos y flechas varios (⭐)
+      if(cp>=0x1F1E6 && cp<=0x1F1FF) return false;                // banderas
+      return true;
+    }).join('');
+  }
   var lines = jalParseLines(text).map(function(ln){
-    var clean = ln.text
-      .replace(/\p{Extended_Pictographic}/gu, '')
-      .replace(/️/g, '')
-      .replace(/[ \t]{2,}/g, ' ')
-      .trim();
+    var clean = jalStripEmoji(ln.text).replace(/[ \t]{2,}/g, ' ').trim();
     return {text: clean, centered: ln.centered};
   });
   var maxLen = 0;
