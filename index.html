@@ -8765,7 +8765,6 @@ function jalToEscPos(text){
   var bytes = [];
   // Init
   bytes.push(0x1B,0x40);         // ESC @ inicializar
-  bytes.push(0x1B,0x61,0x00);    // alinear izquierda (el centrado se calcula a mano abajo)
   bytes.push(0x1B,0x74,0x10);    // code page Latin-1
   bytes.push(0x1B,0x4D,0x00);    // fuente A (12×24)
 
@@ -8778,22 +8777,22 @@ function jalToEscPos(text){
     '—':0x2D,'–':0x2D, // raya/guion largo → guion simple (no existe en Latin-1)
   };
 
-  // El comando de centrado nativo (ESC a 1) depende de que la impresora lo
-  // implemente y de que ese paquete no se pierda en la transmision — ninguna
-  // de las dos cosas es segura en un clon barato por Bluetooth. Por eso el
-  // centrado real se calcula aca con espacios, relativo a la linea mas larga
-  // del propio ticket (topada al ancho real confirmado), en vez de depender
-  // de una funcion de la impresora que puede no estar soportada o llegar
-  // incompleta.
-  var CAP = 24; // ancho real imprimible confirmado con ticket de prueba
+  // Centrado con el comando nativo de la impresora (ESC a 1): confirmado con
+  // una prueba de alineacion impresa (jalTestAlign) que la impresora si lo
+  // respeta, y que su ancho real de columna es mayor al que se habia
+  // asumido a mano (por eso el relleno manual con espacios quedaba corrido
+  // hacia la izquierda: el numero de columnas usado era menor al real).
+  // Usar el comando propio de la impresora evita tener que adivinar ese
+  // ancho — la impresora centra segun su ancho real, sea cual sea.
+
   // Los emojis no existen en el juego de caracteres de la impresora termica
   // (imprime con un codigo de pagina de un solo byte, no Unicode a color):
-  // en vez de mostrar "?" por cada uno, se quitan del texto antes de medir
-  // el ancho y de imprimir, junto con el espacio extra que dejan. Se filtra
-  // por rango de codepoint (no con \p{Extended_Pictographic}) porque esa
-  // propiedad depende de la version de Unicode del navegador/WebView del
-  // celular, y en equipos con Chrome/WebView desactualizado puede no
-  // reconocer emojis mas nuevos y dejarlos pasar como "?".
+  // en vez de mostrar "?" por cada uno, se quitan del texto antes de
+  // imprimir, junto con el espacio extra que dejan. Se filtra por rango de
+  // codepoint (no con \p{Extended_Pictographic}) porque esa propiedad
+  // depende de la version de Unicode del navegador/WebView del celular, y
+  // en equipos con Chrome/WebView desactualizado puede no reconocer emojis
+  // mas nuevos y dejarlos pasar como "?".
   function jalStripEmoji(s){
     return Array.from(s).filter(function(ch){
       var cp = ch.codePointAt(0);
@@ -8806,42 +8805,18 @@ function jalToEscPos(text){
       return true;
     }).join('');
   }
-  var lines = jalParseLines(text).map(function(ln){
+
+  var curAlign = -1;
+  jalParseLines(text).forEach(function(ln){
     var clean = jalStripEmoji(ln.text).replace(/[ \t]{2,}/g, ' ').trim();
-    return {text: clean, centered: ln.centered};
-  });
-  var maxLen = 0;
-  lines.forEach(function(ln){ if(ln.text.length > maxLen) maxLen = ln.text.length; });
-  maxLen = Math.min(maxLen, CAP);
-  // Si una linea centrada no cabe en el ancho (mas larga que cualquier otra
-  // linea del ticket), se parte en varias por palabra en vez de imprimirla
-  // completa pegada a la izquierda — asi cada linea resultante tambien
-  // queda centrada, sin depender de como la impresora decida cortarla.
-  function wrapToWidth(txt, width){
-    if(txt.length <= width) return [txt];
-    var words = txt.split(' ');
-    var out = [], cur = '';
-    words.forEach(function(w){
-      if(!cur){ cur = w; }
-      else if((cur+' '+w).length <= width){ cur += ' '+w; }
-      else { out.push(cur); cur = w; }
-    });
-    if(cur) out.push(cur);
-    var final = [];
-    out.forEach(function(l){
-      while(l.length > width){ final.push(l.slice(0,width)); l = l.slice(width); }
-      final.push(l);
-    });
-    return final;
-  }
-  lines.forEach(function(ln){
-    var subLines = ln.centered ? wrapToWidth(ln.text, maxLen) : [ln.text];
-    subLines.forEach(function(sub){
-    var pad = ln.centered ? Math.max(0, Math.floor((maxLen - sub.length)/2)) : 0;
-    var padded = ' '.repeat(pad) + sub;
-    for(var i=0; i<padded.length; i++){
-      var ch = padded[i];
-      var code = padded.charCodeAt(i);
+    var wantAlign = ln.centered ? 0x01 : 0x00;
+    if(wantAlign !== curAlign){
+      bytes.push(0x1B,0x61,wantAlign);
+      curAlign = wantAlign;
+    }
+    for(var i=0; i<clean.length; i++){
+      var ch = clean[i];
+      var code = clean.charCodeAt(i);
       if(code < 128){
         bytes.push(code);
       } else if(MAP[ch]){
@@ -8851,7 +8826,6 @@ function jalToEscPos(text){
       }
     }
     bytes.push(0x0A); // salto de linea
-    });
   });
 
   // Avance y corte (reducido para no desperdiciar papel)
