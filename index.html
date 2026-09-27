@@ -8349,15 +8349,19 @@ function jalClose(){
 //  2. CONSTRUIR TEXTO PLANO DEL TICKET
 // ─────────────────────────────────────────────
 function jalBuildText(type, data){
-  var W = 24; // Ancho usado solo para separadores y filas etiqueta:valor
+  var W = 24; // Ancho usado solo para separadores
   // El centrado real ya no se calcula con espacios (dependia de adivinar el
   // ancho exacto de columnas del papel, y quedaba torcido si no coincidia).
   // Se marca la linea con \u0001 y cada consumidor la centra con su propio
   // mecanismo nativo: text-align:center en pantalla/ventana de impresion, o
   // el comando ESC a 1 de la propia impresora en el envio ESC/POS.
+  // Al final se centra TODO el ticket, asi que las filas etiqueta:valor usan
+  // un separador compacto (no relleno hasta el ancho de columna) para que se
+  // vean como una sola unidad centrada en vez de un bloque ancho con un
+  // hueco en medio.
   function center(t){ return '\u0001'+t; }
   function sep(ch){ return (ch||'-').repeat(W); }
-  function row(l,r){ r=String(r); var sp=Math.max(1,W-l.length-r.length); return l+' '.repeat(sp)+r; }
+  function row(l,r){ return l+'  '+String(r); }
 
   var now   = new Date();
   var fecha = now.toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric'});
@@ -8396,13 +8400,13 @@ function jalBuildText(type, data){
     L.push(sep('-'));
     L.push('🛵 DETALLE:');
     (r.scooterDetails||[]).forEach(function(sd){
-      var left  = '   '+sd.code+' ('+sd.mins+'min)';
+      var left  = sd.code+' ('+sd.mins+'min)';
       var right = fM(sd.subtotal);
       L.push(row(left, right));
     });
     if(r.discount && r.discount>0){
       L.push(sep('-'));
-      L.push(row('   ⭐ Descuento VIP '+r.vipDiscount+'%', '-'+fM(r.discount)));
+      L.push(row('⭐ Descuento VIP '+r.vipDiscount+'%', '-'+fM(r.discount)));
     }
     L.push(sep('='));
     if(r.discount && r.discount>0){
@@ -8414,9 +8418,9 @@ function jalBuildText(type, data){
     if(r.payMethod){
       var metLabel = r.payMethod==='efectivo'?'💵 Efectivo':'📲 Transferencia';
       L.push(row('Método:', metLabel));
-      if(r.recibido&&r.recibido>0) L.push(row('   Recibido:', fM(r.recibido)));
-      if(r.cambio&&r.cambio>0)     L.push(row('   💚 Cambio:', fM(r.cambio)));
-      if(r.payRef)                 L.push(row('   Ref:', r.payRef));
+      if(r.recibido&&r.recibido>0) L.push(row('Recibido:', fM(r.recibido)));
+      if(r.cambio&&r.cambio>0)     L.push(row('💚 Cambio:', fM(r.cambio)));
+      if(r.payRef)                 L.push(row('Ref:', r.payRef));
     }
   }
 
@@ -8434,7 +8438,7 @@ function jalBuildText(type, data){
     L.push(row('⏱ Tiempo total:', mins+'min'));
     L.push(sep('-'));
     sds.forEach(function(sd){
-      L.push(row('   '+sd.code+' '+sd.mins+'min', fM(sd.subtotal)));
+      L.push(row(sd.code+' '+sd.mins+'min', fM(sd.subtotal)));
     });
     L.push(sep('='));
     L.push(row('💰 TOTAL:', fM(r.total)));
@@ -8509,7 +8513,7 @@ function jalBuildText(type, data){
     L.push(sep('-'));
     L.push('🛵 SCOOTERS DESPACHADOS:');
     (r.scooterDetails||[]).forEach(function(sd){
-      L.push(row('   '+sd.code, fT(sd.exitTime)));
+      L.push(row(sd.code, fT(sd.exitTime)));
     });
     L.push(sep('-'));
     L.push(row('Total unidades:', r.qty+' scooter'+(r.qty>1?'s':'')));
@@ -8546,8 +8550,8 @@ function jalBuildText(type, data){
     } else {
       L.push(sep('='));
       if(r.discount && r.discount > 0){
-        L.push(row('   Subtotal:', fM(r.totalBefore||r.total)));
-        L.push(row('   ⭐ VIP -'+r.vipDiscount+'%:', '-'+fM(r.discount)));
+        L.push(row('Subtotal:', fM(r.totalBefore||r.total)));
+        L.push(row('⭐ VIP -'+r.vipDiscount+'%:', '-'+fM(r.discount)));
         L.push(sep('='));
         L.push(row('💰 TOTAL VIP A PAGAR:', fM(r.total)));
       } else {
@@ -8561,7 +8565,9 @@ function jalBuildText(type, data){
   L.push(center('🛵 SCOOTER — '+fecha));
   L.push(''); L.push(''); L.push('');
 
-  return L.join('\n');
+  // Todo el ticket va centrado (incluidas las filas etiqueta:valor y el
+  // detalle, no solo el encabezado y los titulos).
+  return L.map(function(line){ return line.charAt(0)==='\u0001' ? line : '\u0001'+line; }).join('\n');
 }
 
 
