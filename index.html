@@ -8564,7 +8564,7 @@ function jalBuildText(type, data){
   L.push(sep('='));
   L.push(center('🙏 Gracias por su preferencia'));
   L.push(center('🛵 SCOOTER — '+fecha));
-  L.push(''); L.push(''); L.push('');
+  L.push('');
 
   // Todo el ticket va centrado (incluidas las filas etiqueta:valor y el
   // detalle, no solo el encabezado y los titulos).
@@ -8723,6 +8723,7 @@ function jalToEscPos(text){
   var bytes = [];
   // Init
   bytes.push(0x1B,0x40);         // ESC @ inicializar
+  bytes.push(0x1B,0x61,0x00);    // alinear izquierda (el centrado se calcula a mano abajo)
   bytes.push(0x1B,0x74,0x10);    // code page Latin-1
   bytes.push(0x1B,0x4D,0x00);    // fuente A (12×24)
 
@@ -8734,20 +8735,24 @@ function jalToEscPos(text){
     '¿':0xBF,'¡':0xA1,
   };
 
-  // Centrado con el comando nativo de la impresora (ESC a 1) en vez de
-  // espacios calculados: asi el centrado sale correcto sin importar el
-  // ancho real de columnas de esta impresora en particular (el mismo
-  // mecanismo que usa el driver cuando se imprime por USB).
-  var curAlign = -1;
-  jalParseLines(text).forEach(function(ln){
-    var wantAlign = ln.centered ? 0x01 : 0x00;
-    if(wantAlign !== curAlign){
-      bytes.push(0x1B,0x61,wantAlign);
-      curAlign = wantAlign;
-    }
-    for(var i=0; i<ln.text.length; i++){
-      var ch = ln.text[i];
-      var code = ln.text.charCodeAt(i);
+  // El comando de centrado nativo (ESC a 1) depende de que la impresora lo
+  // implemente y de que ese paquete no se pierda en la transmision — ninguna
+  // de las dos cosas es segura en un clon barato por Bluetooth. Por eso el
+  // centrado real se calcula aca con espacios, relativo a la linea mas larga
+  // del propio ticket (topada al ancho real confirmado), en vez de depender
+  // de una funcion de la impresora que puede no estar soportada o llegar
+  // incompleta.
+  var CAP = 24; // ancho real imprimible confirmado con ticket de prueba
+  var lines = jalParseLines(text);
+  var maxLen = 0;
+  lines.forEach(function(ln){ if(ln.text.length > maxLen) maxLen = ln.text.length; });
+  maxLen = Math.min(maxLen, CAP);
+  lines.forEach(function(ln){
+    var pad = ln.centered ? Math.max(0, Math.floor((maxLen - ln.text.length)/2)) : 0;
+    var padded = ' '.repeat(pad) + ln.text;
+    for(var i=0; i<padded.length; i++){
+      var ch = padded[i];
+      var code = padded.charCodeAt(i);
       if(code < 128){
         bytes.push(code);
       } else if(MAP[ch]){
@@ -8759,8 +8764,8 @@ function jalToEscPos(text){
     bytes.push(0x0A); // salto de linea
   });
 
-  // Avance y corte
-  bytes.push(0x1B,0x64,0x05);        // feed 5 líneas
+  // Avance y corte (reducido para no desperdiciar papel)
+  bytes.push(0x1B,0x64,0x03);        // feed 3 líneas
   bytes.push(0x1D,0x56,0x42,0x00);   // corte parcial
 
   return new Uint8Array(bytes);
