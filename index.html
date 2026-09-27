@@ -8333,8 +8333,11 @@ function jalOpen(type, data, onClose){
     catch(e){ prev.textContent = '[Error al generar ticket: '+e.message+']'; console.error('[JAL] jalBuildText error:', e, 'data:', data); }
   }
   // Mostrar BT sólo si Android + Web Bluetooth disponible
+  var _btOk = ('bluetooth' in navigator && /Android/i.test(navigator.userAgent));
   var btBtn = document.getElementById('jal-bt-btn');
-  if(btBtn) btBtn.style.display = ('bluetooth' in navigator && /Android/i.test(navigator.userAgent)) ? 'block':'none';
+  if(btBtn) btBtn.style.display = _btOk ? 'block':'none';
+  var testBtn = document.getElementById('jal-test-btn');
+  if(testBtn) testBtn.style.display = _btOk ? 'block':'none';
   var m = document.getElementById('jal-modal');
   if(m) m.classList.add('open');
 }
@@ -8630,75 +8633,80 @@ var JAL_CHARS = [
   'bef8d6c9-9c21-4c9e-b632-bd58c1009f9f',
 ];
 
+// Conecta (o reutiliza la conexion) y encuentra el characteristic de
+// escritura. Lanza si no se pudo — compartido por jalBluetoothPrint y el
+// boton de diagnostico jalTestAlign.
+async function jalEnsureConnected(){
+  if(_jalDevice && _jalDevice.gatt.connected && _jalChar) return;
+  toast('Buscando JAL-880L...');
+  _jalDevice = await navigator.bluetooth.requestDevice({
+    acceptAllDevices: true,
+    optionalServices: JAL_SERVICES
+  });
+  var server = await _jalDevice.gatt.connect();
+  toast('Conectado: '+_jalDevice.name);
+
+  _jalChar = null;
+  for(var si=0; si<JAL_SERVICES.length && !_jalChar; si++){
+    try{
+      var srv = await server.getPrimaryService(JAL_SERVICES[si]);
+      for(var ci=0; ci<JAL_CHARS.length && !_jalChar; ci++){
+        try{
+          var ch = await srv.getCharacteristic(JAL_CHARS[ci]);
+          _jalChar = ch;
+        }catch(e){}
+      }
+    }catch(e){}
+  }
+  if(!_jalChar){
+    var services = await server.getPrimaryServices();
+    outerLoop:
+    for(var s of services){
+      var chars = await s.getCharacteristics();
+      for(var ch of chars){
+        if(ch.properties.writeWithoutResponse || ch.properties.write){
+          _jalChar = ch;
+          break outerLoop;
+        }
+      }
+    }
+  }
+  if(!_jalChar){ throw new Error('No se encontró canal de impresión.'); }
+}
+
+// Envia bytes ya armados (ESC/POS completo) al characteristic conectado, en
+// fragmentos pequenos (limite seguro de un paquete BLE sin negociar MTU) con
+// "write" (con respuesta/ACK) cuando el characteristic lo soporta: el await
+// no resuelve hasta que la impresora confirma haber recibido el paquete, lo
+// que evita que su buffer se desborde y descarte bytes en silencio. Si solo
+// soporta "writeWithoutResponse" (sin ACK posible), se compensa con una
+// pausa mas larga entre paquetes. Muchas impresoras clon solo son un puente
+// serial (UART) detras del BLE: pueden confirmar la recepcion del paquete a
+// nivel Bluetooth sin haber terminado de procesarlo/imprimirlo, asi que el
+// ACK por si solo no basta — por eso se agrega ademas una pausa pequena tras
+// cada envio confirmado.
+async function jalSendBytes(bytes){
+  var canAck = !!(_jalChar.properties && _jalChar.properties.write);
+  var CHUNK = 20;
+  for(var i=0; i<bytes.length; i+=CHUNK){
+    var slice = bytes.slice(i, i+CHUNK);
+    if(canAck){
+      try{ await _jalChar.writeValue(slice); await new Promise(function(r){ setTimeout(r,40); }); }
+      catch(e){ await _jalChar.writeValueWithoutResponse(slice); await new Promise(function(r){ setTimeout(r,150); }); }
+    } else {
+      await _jalChar.writeValueWithoutResponse(slice);
+      await new Promise(function(r){ setTimeout(r,150); });
+    }
+  }
+}
+
 async function jalBluetoothPrint(){
   if(!_jalTicket){ toast('Sin datos para imprimir'); return; }
   try {
-    if(!_jalDevice || !_jalDevice.gatt.connected){
-      toast('Buscando JAL-880L...');
-      _jalDevice = await navigator.bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: JAL_SERVICES
-      });
-      var server = await _jalDevice.gatt.connect();
-      toast('Conectado: '+_jalDevice.name);
-
-      // Buscar characteristic de escritura
-      _jalChar = null;
-      // Intento 1: UUIDs conocidos
-      for(var si=0; si<JAL_SERVICES.length && !_jalChar; si++){
-        try{
-          var srv = await server.getPrimaryService(JAL_SERVICES[si]);
-          for(var ci=0; ci<JAL_CHARS.length && !_jalChar; ci++){
-            try{
-              var ch = await srv.getCharacteristic(JAL_CHARS[ci]);
-              _jalChar = ch;
-            }catch(e){}
-          }
-        }catch(e){}
-      }
-      // Intento 2: primer characteristic con propiedad de escritura
-      if(!_jalChar){
-        var services = await server.getPrimaryServices();
-        outerLoop:
-        for(var s of services){
-          var chars = await s.getCharacteristics();
-          for(var ch of chars){
-            if(ch.properties.writeWithoutResponse || ch.properties.write){
-              _jalChar = ch;
-              break outerLoop;
-            }
-          }
-        }
-      }
-      if(!_jalChar){ toast('No se encontró canal de impresión. Usa el botón 🖨️ normal.'); return; }
-    }
-
-    // Construir y enviar ESC/POS
+    await jalEnsureConnected();
     var txt   = jalBuildText(_jalTicket.type, _jalTicket.data);
     var bytes = jalToEscPos(txt);
-    // Fragmentos pequenos (limite seguro de un paquete BLE sin negociar MTU) enviados
-    // con "write" (con respuesta/ACK) cuando el characteristic lo soporta: el await no
-    // resuelve hasta que la impresora confirma haber recibido el paquete, lo que evita
-    // que su buffer se desborde y descarte bytes en silencio (la causa del recorte).
-    // Si solo soporta "writeWithoutResponse" (sin ACK posible), se compensa con una
-    // pausa mas larga entre paquetes.
-    // Muchas impresoras clon solo son un puente serial (UART) detras del BLE:
-    // pueden confirmar la recepcion del paquete a nivel Bluetooth sin haber
-    // terminado de procesarlo/imprimirlo, asi que el ACK por si solo no basta.
-    // Se agrega ademas una pausa pequena tras cada envio confirmado, y una
-    // pausa mayor cuando no hay confirmacion posible.
-    var canAck = !!(_jalChar.properties && _jalChar.properties.write);
-    var CHUNK = 20;
-    for(var i=0; i<bytes.length; i+=CHUNK){
-      var slice = bytes.slice(i, i+CHUNK);
-      if(canAck){
-        try{ await _jalChar.writeValue(slice); await new Promise(function(r){ setTimeout(r,40); }); }
-        catch(e){ await _jalChar.writeValueWithoutResponse(slice); await new Promise(function(r){ setTimeout(r,150); }); }
-      } else {
-        await _jalChar.writeValueWithoutResponse(slice);
-        await new Promise(function(r){ setTimeout(r,150); });
-      }
-    }
+    await jalSendBytes(bytes);
     toast('✅ Impreso en JAL-880L');
     jalClose();
 
@@ -8713,6 +8721,40 @@ async function jalBluetoothPrint(){
       toast('Bluetooth falló — usando impresión normal');
       jalPrintWindow();
     }
+  }
+}
+
+// ── Prueba de alineacion: imprime 4 lineas de diagnostico usando distintas
+// tecnicas de centrado, para saber con certeza cual funciona en la
+// impresora real conectada (relleno manual con espacios vs. comando nativo
+// ESC a 1 de la impresora) sin depender de adivinar por fotos.
+async function jalTestAlign(){
+  try{
+    await jalEnsureConnected();
+    var bytes = [];
+    bytes.push(0x1B,0x40);      // reset
+    bytes.push(0x1B,0x74,0x10); // code page Latin-1
+    bytes.push(0x1B,0x4D,0x00); // fuente A
+    function pushAscii(str){ for(var i=0;i<str.length;i++) bytes.push(str.charCodeAt(i)); }
+    // 1) Izquierda, sin relleno (referencia)
+    bytes.push(0x1B,0x61,0x00);
+    pushAscii('1 IZQUIERDA'); bytes.push(0x0A);
+    // 2) Relleno manual con espacios (lo que usa el ticket real hoy)
+    bytes.push(0x1B,0x61,0x00);
+    pushAscii('           2 PAD MANUAL'); bytes.push(0x0A);
+    // 3) Comando nativo de centrado de la impresora
+    bytes.push(0x1B,0x61,0x01);
+    pushAscii('3 ESC-A CENTRO'); bytes.push(0x0A);
+    // 4) Izquierda otra vez, para confirmar que el comando 3 no se quedo pegado
+    bytes.push(0x1B,0x61,0x00);
+    pushAscii('4 IZQUIERDA FIN'); bytes.push(0x0A);
+    bytes.push(0x1B,0x64,0x03);
+    bytes.push(0x1D,0x56,0x42,0x00);
+    await jalSendBytes(new Uint8Array(bytes));
+    toast('✅ Prueba enviada — revisa el papel');
+  }catch(e){
+    console.error('JAL test error:', e);
+    toast('Error en la prueba: '+e.message);
   }
 }
 
@@ -9027,6 +9069,7 @@ setDT();
     <div style="display:flex;flex-direction:column;gap:.5rem">
       <button onclick="jalPrintWindow()" style="background:#25D366;color:#fff;border:none;border-radius:12px;padding:.85rem;font-size:.9rem;font-weight:800;cursor:pointer">🖨️ Imprimir (sistema)</button>
       <button id="jal-bt-btn" onclick="jalBluetoothPrint()" style="display:none;background:rgba(0,170,255,.12);border:1.5px solid var(--accent);color:var(--accent);border-radius:12px;padding:.85rem;font-size:.9rem;font-weight:800;cursor:pointer">📡 Bluetooth directo</button>
+      <button id="jal-test-btn" onclick="jalTestAlign()" style="display:none;background:transparent;border:1.5px dashed var(--amber);color:var(--amber);border-radius:12px;padding:.6rem;font-size:.78rem;font-weight:700;cursor:pointer">🔧 Prueba de alineación (diagnóstico)</button>
       <button onclick="jalClose()" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:12px;padding:.7rem;font-size:.85rem;cursor:pointer">Cancelar</button>
     </div>
   </div>
