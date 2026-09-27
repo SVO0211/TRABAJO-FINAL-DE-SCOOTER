@@ -8304,13 +8304,32 @@ var _jalOnClose  = null;  // optional callback fired when JAL modal closes
 // ─────────────────────────────────────────────
 //  1. ABRIR MODAL
 // ─────────────────────────────────────────────
+// Divide el texto del ticket en lineas, separando las marcadas para centrado
+// (prefijo \u0001, ver center() en jalBuildText) de las demas. Cada consumidor
+// (preview en pantalla, ventana de impresion, bytes ESC/POS) decide como
+// centrar cada linea con su propio mecanismo nativo, en vez de depender de
+// espacios calculados a mano para un ancho de columna que puede no coincidir
+// con el real de la impresora.
+function jalParseLines(text){
+  return text.split('\n').map(function(line){
+    var centered = line.charAt(0)==='\u0001';
+    return {text: centered ? line.slice(1) : line, centered: centered};
+  });
+}
+
 function jalOpen(type, data, onClose){
   _jalTicket = {type:type, data:data};
   _jalOnClose = onClose || null;
   // Preview
   var prev = document.getElementById('jal-preview');
   if(prev){
-    try{ prev.textContent = jalBuildText(type, data); }
+    try{
+      var parsedPrev = jalParseLines(jalBuildText(type, data));
+      prev.innerHTML = parsedPrev.map(function(ln){
+        var esc = ln.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return '<div style="'+(ln.centered?'text-align:center;':'')+'white-space:pre">' + (esc||'&nbsp;') + '</div>';
+      }).join('');
+    }
     catch(e){ prev.textContent = '[Error al generar ticket: '+e.message+']'; console.error('[JAL] jalBuildText error:', e, 'data:', data); }
   }
   // Mostrar BT sólo si Android + Web Bluetooth disponible
@@ -8330,8 +8349,13 @@ function jalClose(){
 //  2. CONSTRUIR TEXTO PLANO DEL TICKET
 // ─────────────────────────────────────────────
 function jalBuildText(type, data){
-  var W = 24; // Ancho real imprimible confirmado con ticket de prueba (líneas de 24 col. salen completas; 28+ se cortan)
-  function center(t){ var p=Math.max(0,Math.floor((W-t.length)/2)); return ' '.repeat(Math.max(0,p))+t; }
+  var W = 24; // Ancho usado solo para separadores y filas etiqueta:valor
+  // El centrado real ya no se calcula con espacios (dependia de adivinar el
+  // ancho exacto de columnas del papel, y quedaba torcido si no coincidia).
+  // Se marca la linea con \u0001 y cada consumidor la centra con su propio
+  // mecanismo nativo: text-align:center en pantalla/ventana de impresion, o
+  // el comando ESC a 1 de la propia impresora en el envio ESC/POS.
+  function center(t){ return '\u0001'+t; }
   function sep(ch){ return (ch||'-').repeat(W); }
   function row(l,r){ r=String(r); var sp=Math.max(1,W-l.length-r.length); return l+' '.repeat(sp)+r; }
 
@@ -8548,12 +8572,12 @@ function jalPrintWindow(){
   var txt = _jalTicket ? jalBuildText(_jalTicket.type, _jalTicket.data) : '';
   if(!txt){ toast('Sin datos para imprimir'); return; }
 
-  // Convertir líneas de texto a HTML preservando emojis
-  var lines = txt.split('\n');
-  var htmlLines = lines.map(function(l){
+  // Convertir líneas de texto a HTML preservando emojis; las lineas marcadas
+  // para centrado usan text-align:center real en vez de espacios calculados
+  var htmlLines = jalParseLines(txt).map(function(ln){
     // Escapar HTML pero preservar emojis
-    var esc = l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    return '<div style="white-space:pre">' + esc + '</div>';
+    var esc = ln.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return '<div style="'+(ln.centered?'text-align:center;':'')+'white-space:pre">' + esc + '</div>';
   }).join('');
 
   var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
@@ -8651,16 +8675,21 @@ async function jalBluetoothPrint(){
     // que su buffer se desborde y descarte bytes en silencio (la causa del recorte).
     // Si solo soporta "writeWithoutResponse" (sin ACK posible), se compensa con una
     // pausa mas larga entre paquetes.
+    // Muchas impresoras clon solo son un puente serial (UART) detras del BLE:
+    // pueden confirmar la recepcion del paquete a nivel Bluetooth sin haber
+    // terminado de procesarlo/imprimirlo, asi que el ACK por si solo no basta.
+    // Se agrega ademas una pausa pequena tras cada envio confirmado, y una
+    // pausa mayor cuando no hay confirmacion posible.
     var canAck = !!(_jalChar.properties && _jalChar.properties.write);
     var CHUNK = 20;
     for(var i=0; i<bytes.length; i+=CHUNK){
       var slice = bytes.slice(i, i+CHUNK);
       if(canAck){
-        try{ await _jalChar.writeValue(slice); }
-        catch(e){ await _jalChar.writeValueWithoutResponse(slice); await new Promise(function(r){ setTimeout(r,120); }); }
+        try{ await _jalChar.writeValue(slice); await new Promise(function(r){ setTimeout(r,40); }); }
+        catch(e){ await _jalChar.writeValueWithoutResponse(slice); await new Promise(function(r){ setTimeout(r,150); }); }
       } else {
         await _jalChar.writeValueWithoutResponse(slice);
-        await new Promise(function(r){ setTimeout(r,120); });
+        await new Promise(function(r){ setTimeout(r,150); });
       }
     }
     toast('✅ Impreso en JAL-880L');
@@ -8687,7 +8716,6 @@ function jalToEscPos(text){
   var bytes = [];
   // Init
   bytes.push(0x1B,0x40);         // ESC @ inicializar
-  bytes.push(0x1B,0x61,0x00);    // alinear izquierda
   bytes.push(0x1B,0x74,0x10);    // code page Latin-1
   bytes.push(0x1B,0x4D,0x00);    // fuente A (12×24)
 
@@ -8699,17 +8727,30 @@ function jalToEscPos(text){
     '¿':0xBF,'¡':0xA1,
   };
 
-  for(var i=0; i<text.length; i++){
-    var ch = text[i];
-    var code = text.charCodeAt(i);
-    if(code < 128){
-      bytes.push(code);
-    } else if(MAP[ch]){
-      bytes.push(MAP[ch]);
-    } else {
-      bytes.push(0x3F); // '?'
+  // Centrado con el comando nativo de la impresora (ESC a 1) en vez de
+  // espacios calculados: asi el centrado sale correcto sin importar el
+  // ancho real de columnas de esta impresora en particular (el mismo
+  // mecanismo que usa el driver cuando se imprime por USB).
+  var curAlign = -1;
+  jalParseLines(text).forEach(function(ln){
+    var wantAlign = ln.centered ? 0x01 : 0x00;
+    if(wantAlign !== curAlign){
+      bytes.push(0x1B,0x61,wantAlign);
+      curAlign = wantAlign;
     }
-  }
+    for(var i=0; i<ln.text.length; i++){
+      var ch = ln.text[i];
+      var code = ln.text.charCodeAt(i);
+      if(code < 128){
+        bytes.push(code);
+      } else if(MAP[ch]){
+        bytes.push(MAP[ch]);
+      } else {
+        bytes.push(0x3F); // '?'
+      }
+    }
+    bytes.push(0x0A); // salto de linea
+  });
 
   // Avance y corte
   bytes.push(0x1B,0x64,0x05);        // feed 5 líneas
@@ -8784,10 +8825,9 @@ function jalPrintDirect(){
   var r = _currentTicketRental;
   if(!r){ toast('Sin datos para imprimir'); return; }
   var txt = jalBuildText('cobro', r);
-  var lines = txt.split('\n');
-  var htmlLines = lines.map(function(l){
-    var esc = l.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    return '<div style="white-space:pre">' + esc + '<\/div>';
+  var htmlLines = jalParseLines(txt).map(function(ln){
+    var esc = ln.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return '<div style="'+(ln.centered?'text-align:center;':'')+'white-space:pre">' + esc + '<\/div>';
   }).join('');
   var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
     + '<meta name="viewport" content="width=58mm">'
