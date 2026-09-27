@@ -8733,6 +8733,7 @@ function jalToEscPos(text){
     'Á':0xC1,'É':0xC9,'Í':0xCD,'Ó':0xD3,'Ú':0xDA,
     'ñ':0xF1,'Ñ':0xD1,'ü':0xFC,'Ü':0xDC,
     '¿':0xBF,'¡':0xA1,
+    '—':0x2D,'–':0x2D, // raya/guion largo → guion simple (no existe en Latin-1)
   };
 
   // El comando de centrado nativo (ESC a 1) depende de que la impresora lo
@@ -8743,7 +8744,18 @@ function jalToEscPos(text){
   // de una funcion de la impresora que puede no estar soportada o llegar
   // incompleta.
   var CAP = 24; // ancho real imprimible confirmado con ticket de prueba
-  var lines = jalParseLines(text);
+  // Los emojis no existen en el juego de caracteres de la impresora termica
+  // (imprime con un codigo de pagina de un solo byte, no Unicode a color):
+  // en vez de mostrar "?" por cada uno, se quitan del texto antes de medir
+  // el ancho y de imprimir, junto con el espacio extra que dejan.
+  var lines = jalParseLines(text).map(function(ln){
+    var clean = ln.text
+      .replace(/\p{Extended_Pictographic}/gu, '')
+      .replace(/️/g, '')
+      .replace(/[ \t]{2,}/g, ' ')
+      .trim();
+    return {text: clean, centered: ln.centered};
+  });
   var maxLen = 0;
   lines.forEach(function(ln){ if(ln.text.length > maxLen) maxLen = ln.text.length; });
   maxLen = Math.min(maxLen, CAP);
