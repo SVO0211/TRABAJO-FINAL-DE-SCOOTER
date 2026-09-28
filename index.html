@@ -8369,8 +8369,6 @@ function jalOpen(type, data, onClose){
   var _btOk = ('bluetooth' in navigator && /Android/i.test(navigator.userAgent));
   var btBtn = document.getElementById('jal-bt-btn');
   if(btBtn) btBtn.style.display = _btOk ? 'block':'none';
-  var testBtn = document.getElementById('jal-test-btn');
-  if(testBtn) testBtn.style.display = _btOk ? 'block':'none';
   var m = document.getElementById('jal-modal');
   if(m) m.classList.add('open');
 }
@@ -8667,8 +8665,7 @@ var JAL_CHARS = [
 ];
 
 // Conecta (o reutiliza la conexion) y encuentra el characteristic de
-// escritura. Lanza si no se pudo — compartido por jalBluetoothPrint y el
-// boton de diagnostico jalTestAlign.
+// escritura. Lanza si no se pudo.
 async function jalEnsureConnected(){
   if(_jalDevice && _jalDevice.gatt.connected && _jalChar) return;
   toast('Buscando JAL-880L...');
@@ -8757,40 +8754,6 @@ async function jalBluetoothPrint(){
   }
 }
 
-// ── Prueba de alineacion: imprime 4 lineas de diagnostico usando distintas
-// tecnicas de centrado, para saber con certeza cual funciona en la
-// impresora real conectada (relleno manual con espacios vs. comando nativo
-// ESC a 1 de la impresora) sin depender de adivinar por fotos.
-async function jalTestAlign(){
-  try{
-    await jalEnsureConnected();
-    var bytes = [];
-    bytes.push(0x1B,0x40);      // reset
-    bytes.push(0x1B,0x74,0x10); // code page Latin-1
-    bytes.push(0x1B,0x4D,0x00); // fuente A
-    function pushAscii(str){ for(var i=0;i<str.length;i++) bytes.push(str.charCodeAt(i)); }
-    // 1) Izquierda, sin relleno (referencia)
-    bytes.push(0x1B,0x61,0x00);
-    pushAscii('1 IZQUIERDA'); bytes.push(0x0A);
-    // 2) Relleno manual con espacios (lo que usa el ticket real hoy)
-    bytes.push(0x1B,0x61,0x00);
-    pushAscii('           2 PAD MANUAL'); bytes.push(0x0A);
-    // 3) Comando nativo de centrado de la impresora
-    bytes.push(0x1B,0x61,0x01);
-    pushAscii('3 ESC-A CENTRO'); bytes.push(0x0A);
-    // 4) Izquierda otra vez, para confirmar que el comando 3 no se quedo pegado
-    bytes.push(0x1B,0x61,0x00);
-    pushAscii('4 IZQUIERDA FIN'); bytes.push(0x0A);
-    bytes.push(0x1B,0x64,0x03);
-    bytes.push(0x1D,0x56,0x42,0x00);
-    await jalSendBytes(new Uint8Array(bytes));
-    toast('✅ Prueba enviada — revisa el papel');
-  }catch(e){
-    console.error('JAL test error:', e);
-    toast('Error en la prueba: '+e.message);
-  }
-}
-
 // ─────────────────────────────────────────────
 //  5. CONVERTIR TEXTO A BYTES ESC/POS
 // ─────────────────────────────────────────────
@@ -8811,12 +8774,12 @@ function jalToEscPos(text){
   };
 
   // Centrado con el comando nativo de la impresora (ESC a 1): confirmado con
-  // una prueba de alineacion impresa (jalTestAlign) que la impresora si lo
-  // respeta, y que su ancho real de columna es mayor al que se habia
-  // asumido a mano (por eso el relleno manual con espacios quedaba corrido
-  // hacia la izquierda: el numero de columnas usado era menor al real).
-  // Usar el comando propio de la impresora evita tener que adivinar ese
-  // ancho — la impresora centra segun su ancho real, sea cual sea.
+  // una prueba impresa que la impresora si lo respeta, y que su ancho real
+  // de columna es mayor al que se habia asumido a mano (por eso el relleno
+  // manual con espacios quedaba corrido hacia la izquierda: el numero de
+  // columnas usado era menor al real). Usar el comando propio de la
+  // impresora evita tener que adivinar ese ancho — la impresora centra
+  // segun su ancho real, sea cual sea.
 
   // Los emojis no existen en el juego de caracteres de la impresora termica
   // (imprime con un codigo de pagina de un solo byte, no Unicode a color):
@@ -9076,7 +9039,6 @@ setDT();
     <div style="display:flex;flex-direction:column;gap:.5rem">
       <button onclick="jalPrintWindow()" style="background:#25D366;color:#fff;border:none;border-radius:12px;padding:.85rem;font-size:.9rem;font-weight:800;cursor:pointer">🖨️ Imprimir (sistema)</button>
       <button id="jal-bt-btn" onclick="jalBluetoothPrint()" style="display:none;background:rgba(0,170,255,.12);border:1.5px solid var(--accent);color:var(--accent);border-radius:12px;padding:.85rem;font-size:.9rem;font-weight:800;cursor:pointer">📡 Bluetooth directo</button>
-      <button id="jal-test-btn" onclick="jalTestAlign()" style="display:none;background:transparent;border:1.5px dashed var(--amber);color:var(--amber);border-radius:12px;padding:.6rem;font-size:.78rem;font-weight:700;cursor:pointer">🔧 Prueba de alineación (diagnóstico)</button>
       <button onclick="jalClose()" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:12px;padding:.7rem;font-size:.85rem;cursor:pointer">Cancelar</button>
     </div>
   </div>
