@@ -973,6 +973,7 @@ input,textarea{-webkit-user-select:text!important;-moz-user-select:text!importan
           <div class="tab" id="ptab-actividad" onclick="setPerfilTab('actividad',this)">⚡ Actividad</div>
           <div class="tab" id="ptab-cierre" onclick="setPerfilTab('cierre',this)">🔒 Cierre</div>
           <div class="tab" id="ptab-contabilidad" onclick="setPerfilTab('contabilidad',this)" style="color:var(--amber);display:none">📈 Contabilidad</div>
+          <div class="tab" id="ptab-cuenta" onclick="setPerfilTab('cuenta',this)">🔑 Cuenta</div>
         </div>
 
         <!-- Tab: Resumen -->
@@ -1035,6 +1036,17 @@ input,textarea{-webkit-user-select:text!important;-moz-user-select:text!importan
         <!-- Tab: Contabilidad -->
         <div id="ptab-content-contabilidad" style="display:none">
           <div id="contabilidad-content"></div>
+        </div>
+
+        <!-- Tab: Cuenta (cambiar mi contraseña) -->
+        <div id="ptab-content-cuenta" style="display:none">
+          <div class="form-card">
+            <div style="font-size:.85rem;font-weight:600;color:var(--accent);margin-bottom:.85rem">🔑 Cambiar mi contraseña</div>
+            <div class="field"><label>Contraseña actual</label><input type="password" id="cp-actual" placeholder="••••••••" autocomplete="current-password"/></div>
+            <div class="field"><label>Nueva contraseña</label><input type="password" id="cp-nueva" placeholder="mín. 4 caracteres" autocomplete="new-password"/></div>
+            <div class="field"><label>Confirmar nueva contraseña</label><input type="password" id="cp-confirmar" placeholder="Repite la nueva contraseña" autocomplete="new-password" onkeydown="if(event.key==='Enter')cambiarMiPassword()"/></div>
+            <button class="btn" onclick="cambiarMiPassword()">🔑 Cambiar contraseña</button>
+          </div>
         </div>
 
         <!-- Zona de peligro — solo gerente -->
@@ -5462,7 +5474,7 @@ function resetAllData(){
 
 function setPerfilTab(tab, el){
   _perfilTab=tab;
-  ['resumen','descanso','actividad','cierre','contabilidad'].forEach(function(t){
+  ['resumen','descanso','actividad','cierre','contabilidad','cuenta'].forEach(function(t){
     var btn=document.getElementById('ptab-'+t);
     var content=document.getElementById('ptab-content-'+t);
     if(btn)btn.classList.toggle('active',t===tab);
@@ -5470,6 +5482,28 @@ function setPerfilTab(tab, el){
   });
   if(tab==='cierre')renderCierreTurno();
   if(tab==='contabilidad')renderContabilidad();
+  if(tab==='cuenta'){
+    ['cp-actual','cp-nueva','cp-confirmar'].forEach(function(id){var e=document.getElementById(id);if(e)e.value='';});
+  }
+}
+
+// ── Cambiar mi propia contraseña (cualquier rol, incluido el gerente) ──
+function cambiarMiPassword(){
+  if(!CU)return;
+  var actual=document.getElementById('cp-actual').value;
+  var nueva=document.getElementById('cp-nueva').value;
+  var confirmar=document.getElementById('cp-confirmar').value;
+  var us=LS.get('sr_users')||[];
+  var idx=us.findIndex(function(u){return u.username===CU.username;});
+  if(idx===-1){toast('Usuario no encontrado');return;}
+  if(us[idx].password!==actual){toast('❌ La contraseña actual no es correcta');return;}
+  if(!nueva||nueva.length<4){toast('Mín. 4 caracteres en la nueva contraseña');return;}
+  if(nueva!==confirmar){toast('❌ Las contraseñas nuevas no coinciden');return;}
+  us[idx].password=nueva;
+  LS.set('sr_users',us);
+  writeLog('pass-change','🔑 Cambio de contraseña: '+CU.username,{username:CU.username});
+  toast('✔ Contraseña actualizada');
+  ['cp-actual','cp-nueva','cp-confirmar'].forEach(function(id){document.getElementById(id).value='';});
 }
 
 function triggerPerfilPhoto(){
@@ -6630,6 +6664,7 @@ function renderCierreTurno(){
     )
     +'<button onclick="registrarCierreTurno()" '+(tienePendientes?'disabled style="opacity:.45;cursor:not-allowed;"':'')+' style="background:'+(alreadyClosed?'var(--bg3)':'rgba(0,170,255,.15)')+';border:1px solid '+(alreadyClosed?'var(--border)':'var(--accent)')+';color:'+(alreadyClosed?'var(--muted)':'var(--accent)')+';border-radius:12px;padding:.75rem;font-weight:700;font-size:.85rem;cursor:pointer;min-height:44px">'+(tienePendientes?'🚫 Sin pendientes para cerrar':alreadyClosed?'🔄 Actualizar cierre':'🔒 Registrar cierre de turno')+'</button>'
   +'<button onclick="jalPrintCierre()" style="width:100%;background:rgba(37,211,102,.1);border:1.5px solid #25D366;color:#25D366;border-radius:10px;padding:.75rem;font-weight:700;cursor:pointer;margin-top:.5rem;font-size:.85rem">🖨️ Imprimir cierre de turno</button>'
+  +'<button onclick="compartirCierreWA()" style="width:100%;background:rgba(37,211,102,.15);border:1.5px solid #25D366;color:#25D366;border-radius:10px;padding:.75rem;font-weight:700;cursor:pointer;margin-top:.5rem;font-size:.85rem">📲 Compartir cierre por WhatsApp</button>'
   +'</div>'
 
   // Historial de cierres del empleado
@@ -6789,23 +6824,19 @@ function abrirEntregaStand(){
 
   var m=document.getElementById('entrega-modal');
   var prev=document.getElementById('entrega-preview');
-  var numInput=document.getElementById('entrega-wa-num');
-  var savedNum=localStorage.getItem('scooter_wa_entrega')||'';
-  if(numInput)numInput.value=savedNum;
   if(prev)prev.textContent=_entregaData;
   m.style.display='flex';m.style.alignItems='center';m.style.justifyContent='center';
 
   registrarCierreTurno();
 }
 
+// Número fijo al que siempre se envían los cierres/entregas por WhatsApp.
+var WA_CIERRE_NUM='573128773276';
+
 
 function enviarEntregaWA(){
   if(!_entregaData){toast('Sin datos de entrega');return;}
-  var inp=document.getElementById('entrega-wa-num');
-  var num=(inp?inp.value.trim():'').replace(/\D/g,'');
-  if(!num){toast('⚠️ Ingresa el número de WhatsApp primero');inp&&inp.focus();return;}
-  if(num.length===10&&num.startsWith('3'))num='57'+num;
-  saveEntregaWaNum();
+  var num=WA_CIERRE_NUM;
 
   var today=new Date().toISOString().split('T')[0];
 
@@ -6852,14 +6883,6 @@ function closeEntregaModal(){
   if(m)m.style.display='none';
   _entregaData=null;
   _entregaVerifCode=null;
-}
-
-function saveEntregaWaNum(){
-  var inp=document.getElementById('entrega-wa-num');
-  if(!inp||!inp.value.trim()){toast('Ingresa un número');return;}
-  var num=inp.value.trim().replace(/\D/g,'');
-  localStorage.setItem('scooter_wa_entrega',num);
-  toast('✅ Número guardado: +57'+num);
 }
 
 function renderCierreSupervisor(){
@@ -8916,6 +8939,12 @@ confirmPay = function(){
 // ── Botón de impresión en cierre de turno ──
 function jalPrintCierre(){
   if(!CU) return;
+  jalOpen('cierre', getMiCierreDelDiaData());
+}
+
+// Datos del cierre de turno del empleado actual, hoy — usados tanto para el
+// ticket (jalPrintCierre) como para el mensaje de WhatsApp (compartirCierreWA).
+function getMiCierreDelDiaData(){
   var today = new Date().toISOString().split('T')[0];
   var rentals = LS.get('sr_rentals')||[];
   var mine = rentals.filter(function(r){
@@ -8931,7 +8960,7 @@ function jalPrintCierre(){
     .reduce(function(s,r){ return s+(r.total||0); }, 0);
   var cajas = LS.get('sr_cajas')||{};
   var cDay  = (cajas[CU.stand]&&cajas[CU.stand][today])||{};
-  jalOpen('cierre',{
+  return {
     stand: CU.stand,
     username: CU.fullName||CU.username,
     rentas: mine.length,
@@ -8940,7 +8969,35 @@ function jalPrintCierre(){
     transferencia: transf,
     cajaInicio: cDay.inicio||null,
     cajaCierre: cDay.cierre||null,
-  });
+  };
+}
+
+// ── Compartir cierre de turno por WhatsApp — siempre al mismo número ──
+function compartirCierreWA(){
+  if(!CU)return;
+  var d=getMiCierreDelDiaData();
+  var now=new Date();
+  var msg=[
+    '🔒 *CIERRE DE TURNO — SCOOTER*',
+    '━━━━━━━━━━━━━━━━━━━━━━━',
+    '📍 Stand: *'+(d.stand||'—')+'*',
+    '👤 Empleado: *'+d.username+'*',
+    '🕐 Hora: *'+now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})+'*',
+    '📅 '+now.toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long',year:'numeric'}),
+    '',
+    '📝 Rentas del día: *'+d.rentas+'*',
+    '💰 Total cobrado: *'+fM(d.income)+'*',
+    d.efectivo!=null?'   💵 Efectivo: *'+fM(d.efectivo)+'*':false,
+    d.transferencia!=null?'   📲 Transferencia: *'+fM(d.transferencia)+'*':false,
+    '',
+    d.cajaInicio!=null?'📦 Caja inicio: *'+fM(d.cajaInicio)+'*':false,
+    d.cajaCierre!=null?'📦 Caja cierre: *'+fM(d.cajaCierre)+'*':false,
+    (d.cajaInicio!=null&&d.cajaCierre!=null)?'✅ Diferencia: *'+fM(d.cajaCierre-d.cajaInicio)+'*':false,
+    '',
+    '━━━━━━━━━━━━━━━━━━━━━━━',
+    '_Enviado desde SCOOTER App_',
+  ].filter(function(l){return l!==false;}).join('\n');
+  window.open('https://wa.me/'+WA_CIERRE_NUM+'?text='+encodeURIComponent(msg),'_blank');
 }
 
 // ── Botón de impresión en entrega de stand ──
@@ -9050,12 +9107,7 @@ setDT();
     <div style="font-size:.8rem;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:1.1rem">📦 Entrega de Stand</div>
     <div style="background:var(--bg3);border-radius:10px;padding:.85rem 1rem;margin-bottom:1rem">
       <div style="font-size:.78rem;font-weight:700;color:var(--accent);margin-bottom:.4rem">📲 Enviar a WhatsApp</div>
-      <div style="display:flex;gap:.5rem;align-items:center">
-        <span style="font-size:.85rem;color:var(--muted)">+57</span>
-        <input type="tel" id="entrega-wa-num" placeholder="3001234567" inputmode="numeric" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-family:var(--mono);font-size:.9rem"/>
-        <button onclick="saveEntregaWaNum()" style="background:rgba(0,170,255,.15);border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:.45rem .8rem;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap">💾 Guardar</button>
-      </div>
-      <div style="font-size:.7rem;color:var(--muted);margin-top:.35rem">Este número se guarda para futuros cierres</div>
+      <div style="font-size:.85rem;color:var(--text)">Se enviará automáticamente a <strong>+57 312 877 3276</strong></div>
     </div>
     <div style="font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:.4rem">Vista previa del mensaje:</div>
     <div id="entrega-preview" style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:.85rem 1rem;font-size:.78rem;color:var(--text);font-family:var(--mono);white-space:pre-wrap;max-height:260px;overflow-y:auto;margin-bottom:1rem;line-height:1.6"></div>
