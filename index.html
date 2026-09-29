@@ -4395,14 +4395,17 @@ function renderCaja(){
   if(CU.role==='admin'&&CU.stand&&CU.stand!=='Todos')rs=rs.filter(function(r){return r.stand===CU.stand;});
   rs=filtrarVentasPropias(rs);
 
-  // Apply period filter first
-  var period=(document.getElementById('caja-period')||{}).value||'today';
-  rs=rs.filter(function(r){return periodFilter(r.returnTime,period);});
-
   // Apply paid/unpaid filter
   if(filter==='pending')rs=rs.filter(function(r){return!r.paid;});
   else if(filter==='paid')rs=rs.filter(function(r){return r.paid;});
   // all: no extra filter
+
+  // Apply period filter — NO aplica a pendientes: un cobro pendiente no debe
+  // desaparecer de la lista solo porque no es de "hoy" (dinero que aún se debe).
+  var period=(document.getElementById('caja-period')||{}).value||'today';
+  if(filter!=='pending'){
+    rs=rs.filter(function(r){return periodFilter(r.returnTime,period);});
+  }
 
   // Search
   if(q)rs=rs.filter(function(r){
@@ -4414,13 +4417,14 @@ function renderCaja(){
 
   rs.sort(function(a,b){return(a.paid?1:0)-(b.paid?1:0)||(b.returnTime||0)-(a.returnTime||0);});
 
-  // Stats (filtered by period + stand, not by search/paid filter)
-  var allRet=rentals.filter(function(r){
+  // Stats (stand-scoped). Pendientes: SIEMPRE todo el histórico (igual que el badge del menú),
+  // sin importar el período seleccionado. Pagados/total sí respetan el período (reporte por fecha).
+  var standScoped=rentals.filter(function(r){
     return r.status==='returned'
-      &&(CU.role==='gerente'||(CU.stand&&r.stand===CU.stand&&esParticipante(r,CU.username)))
-      &&periodFilter(r.returnTime,period);
+      &&(CU.role==='gerente'||(CU.stand&&r.stand===CU.stand&&esParticipante(r,CU.username)));
   });
-  var pendingCount=allRet.filter(function(r){return!r.paid;}).length;
+  var pendingCount=standScoped.filter(function(r){return!r.paid;}).length;
+  var allRet=standScoped.filter(function(r){return periodFilter(r.returnTime,period);});
   var paidToday=allRet.filter(function(r){return r.paid;});
   var paidTodayIncome=paidToday.reduce(function(s,r){return s+(r.total||0);},0);
   document.getElementById('caja-stat-pending').textContent=pendingCount;
@@ -9105,6 +9109,12 @@ setDT();
   var _vEl,_aEl,_nEl,_capBtn;
 
   function _init(){
+    // En iOS/iPadOS, inputmode="none" no oculta de forma confiable el teclado
+    // nativo de Safari una vez el campo ya tiene foco (a diferencia de Android),
+    // por lo que este teclado personalizado termina peleando con el del sistema
+    // y bloquea la escritura normal. En iPhone/iPad se deja el teclado nativo.
+    var isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+    if(isIOS)return;
     _vEl=document.getElementById('vkb');
     _aEl=document.getElementById('vkb-alpha');
     _nEl=document.getElementById('vkb-num');
