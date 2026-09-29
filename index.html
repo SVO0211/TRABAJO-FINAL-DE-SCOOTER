@@ -1139,8 +1139,8 @@ input,textarea{-webkit-user-select:text!important;-moz-user-select:text!importan
                 <div id="scan-available-list" style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;padding:.5rem;display:flex;flex-wrap:wrap;gap:.5rem"></div>
               </div>
               <div class="field" id="scan-vh-wrap" style="display:none;margin-top:.7rem">
-                <label>Vehículos en renta (todos) — compara manualmente</label>
-                <div id="scan-vh-list" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;padding:.35rem"></div>
+                <label>🛴 Pendientes de retorno — toca uno para registrar</label>
+                <div id="scan-vh-list" style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;padding:.5rem;display:flex;flex-wrap:wrap;gap:.5rem"></div>
               </div>
               <div class="scan-code-group">
                 <div class="field"><label>Código del Scooter</label>
@@ -3358,11 +3358,21 @@ function renderScanVhList(){
   wrap.style.display='block';
   const rows=vhRentaRows();
   const cont=document.getElementById('scan-vh-list');
-  if(!rows.length){cont.innerHTML='<div style="color:var(--muted);font-size:.8rem;text-align:center;padding:1rem">No hay scooters en renta actualmente</div>';return;}
+  if(!rows.length){cont.innerHTML='<div style="color:var(--muted);font-size:.8rem;text-align:center;padding:1rem;width:100%">No hay scooters pendientes de retorno</div>';return;}
   cont.innerHTML=rows.map(x=>`
-    <div class="sc-row st-out" style="cursor:pointer" onclick="document.getElementById('scan-rental-select').value='${x.rentalId}';onSelectRental();">
-      <div class="sc-dot"></div><span class="sc-code">${x.code}</span><span class="sc-time">${x.client} · #${x.consecutivo||'—'}</span>
+    <div onclick="scanQuickReturn('${x.rentalId}','${escForOnclick(x.code)}')" style="width:84px;min-height:84px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15rem;background:var(--bg3);border:1.5px solid var(--amber);border-radius:14px;cursor:pointer;padding:.3rem;transition:transform .1s" onmousedown="this.style.transform='scale(.94)'" onmouseup="this.style.transform='scale(1)'">
+      <div style="font-size:1.9rem;line-height:1">🛴</div>
+      <div style="font-size:.72rem;font-weight:700;color:var(--text);text-align:center;word-break:break-word">${x.code}</div>
+      <div style="font-size:.62rem;color:var(--muted);text-align:center;line-height:1.2">${x.client}<br>#${x.consecutivo||'—'}</div>
     </div>`).join('');
+}
+// Registra el retorno de un scooter con un solo toque: selecciona su renta y
+// procesa el escaneo directamente, sin escribir el codigo a mano.
+function scanQuickReturn(rentalId,code){
+  document.getElementById('scan-rental-select').value=rentalId;
+  onSelectRental();
+  document.getElementById('scan-code').value=code;
+  processScan();
 }
 function onSelectRental(){document.getElementById('scan-code').value='';document.getElementById('scan-result').style.display='none';renderScPanel();var rid=document.getElementById('scan-rental-select').value;if(rid){setTimeout(function(){var inp=document.getElementById('scan-code');if(inp){inp.focus();inp.click();}},200);}}
 function renderScPanel(){
