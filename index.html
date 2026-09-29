@@ -8408,8 +8408,9 @@ function jalBuildText(type, data){
   L.push(center('🛵  SCOOTER  🛵'));
   L.push(center('Sistema de Arrendamiento'));
   L.push(sep('='));
+  var horaLabel = type==='salida' ? 'Hora de salida:' : type==='retorno' ? 'Hora de retorno:' : 'Hora:';
   L.push(row('📅 Fecha:', fecha));
-  L.push(row('🕐 Hora:', hora));
+  L.push(row('🕐 '+horaLabel, hora));
   if(who) L.push(row('👤 Empleado:', who));
   L.push(sep('='));
 
@@ -8570,8 +8571,8 @@ function jalBuildText(type, data){
     L.push('📍 Stand: '+(r.stand||'—'));
     L.push(sep('-'));
     L.push(row('🛵 Scooter:', _sd.code||d.sc&&d.sc.code||'—'));
-    L.push(row('⏰ Salida:', fT(_sd.exitTime)));
-    L.push(row('🔄 Retorno:', fT(_sd.returnTime)));
+    L.push(row('⏰ Hora de salida:', fT(_sd.exitTime)));
+    L.push(row('🔄 Hora de retorno:', fT(_sd.returnTime)));
     L.push(row('⏱ Tiempo:', d.mins+'min'));
     L.push(row('💵 Cobro este sc.:', fM(d.subtotal)));
     L.push(sep('-'));
