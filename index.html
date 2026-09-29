@@ -2213,7 +2213,7 @@ function setupPWA(){
   window.addEventListener('appinstalled',()=>{document.getElementById('pwa-banner').style.display='none';toast('✔ App instalada — ábrela desde tu pantalla de inicio');});
   // Register SW for offline + camera permissions
   if('serviceWorker' in navigator){
-    const sw=`const C='sc-v3';self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['.','jsqr.min.js'])));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim();});self.addEventListener('fetch',e=>{e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)||caches.match('.')));});`;
+    const sw=`const C='sc-v4';self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['.','jsqr.min.js','scooter-icon.png'])));self.skipWaiting();});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim();});self.addEventListener('fetch',e=>{e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)||caches.match('.')));});`;
     const swUrl=URL.createObjectURL(new Blob([sw],{type:'application/javascript'}));
     navigator.serviceWorker.register(swUrl,{scope:'./'}).catch(()=>{});
   }
@@ -3297,6 +3297,30 @@ function refreshScanSelect(){
   renderScanAvailable();
 }
 // ══ SCOOTERS DISPONIBLES (despacho directo con un toque en modo Salida) ══
+// Detecta el color por el nombre/codigo del scooter (ej. "ROJO 2") para
+// pintar la foto del scooter de ese color; si no reconoce ninguno, se
+// muestra la foto tal cual (sin tinte).
+function scooterColorHex(code){
+  var c=(code||'').toUpperCase();
+  var map=[
+    [/ROJO/, '#e5342e'],[/AZUL/, '#2f6fed'],[/VERDE/, '#2fae4a'],
+    [/AMARILL/, '#e8c22d'],[/NARANJ/, '#f08a24'],[/MORAD|VIOLET/, '#8b3fd1'],
+    [/NEGR/, '#3a3a3a'],[/BLANC/, '#c9c9c9'],[/GRIS/, '#8a8a8a'],
+    [/ROSA|FUCSIA/, '#e0559c'],[/CAFE|MARRON/, '#7a4a25'],
+    [/CELEST|TURQUES/, '#2fc2d8'],[/PLATEAD|PLATA/, '#b8b8b8'],[/DORAD/, '#cfa62e']
+  ];
+  for(var i=0;i<map.length;i++){ if(map[i][0].test(c)) return map[i][1]; }
+  return null;
+}
+// Tarjeta con la foto real del scooter, teñida del color detectado en su
+// codigo (ej. "ROJO 2" -> foto en rojo). Sin color reconocido, foto normal.
+function scooterIconHtml(code){
+  var hex=scooterColorHex(code);
+  return '<div style="position:relative;width:100%;height:44px;isolation:isolate;border-radius:8px;overflow:hidden;background:#fff;flex-shrink:0">'
+    +'<img src="scooter-icon.png" alt="" style="width:100%;height:100%;object-fit:contain;display:block;'+(hex?'filter:grayscale(1) contrast(1.05);':'')+'">'
+    +(hex?'<div style="position:absolute;inset:0;background:'+hex+';mix-blend-mode:color"></div>':'')
+  +'</div>';
+}
 function scanAvailableRows(){
   var scooters=LS.get('sr_scooters')||[];
   var stand=myStand();
@@ -3311,8 +3335,8 @@ function renderScanAvailable(){
   var cont=document.getElementById('scan-available-list');
   if(!rows.length){cont.innerHTML='<div style="color:var(--muted);font-size:.8rem;text-align:center;padding:1rem;width:100%">No hay scooters disponibles</div>';return;}
   cont.innerHTML=rows.map(function(s){
-    return '<div onclick="quickDispatch(\''+s.code+'\')" style="width:84px;height:84px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.2rem;background:var(--bg3);border:1.5px solid var(--accent);border-radius:14px;cursor:pointer;transition:transform .1s" onmousedown="this.style.transform=\'scale(.94)\'" onmouseup="this.style.transform=\'scale(1)\'">'
-      +'<div style="font-size:1.9rem;line-height:1">🛴</div>'
+    return '<div onclick="quickDispatch(\''+s.code+'\')" style="width:88px;padding:.4rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.3rem;background:var(--bg3);border:1.5px solid var(--accent);border-radius:14px;cursor:pointer;transition:transform .1s" onmousedown="this.style.transform=\'scale(.94)\'" onmouseup="this.style.transform=\'scale(1)\'">'
+      +scooterIconHtml(s.code)
       +'<div style="font-size:.72rem;font-weight:700;color:var(--text);text-align:center;padding:0 .2rem;word-break:break-word">'+s.code+'</div>'
     +'</div>';
   }).join('');
@@ -3360,8 +3384,8 @@ function renderScanVhList(){
   const cont=document.getElementById('scan-vh-list');
   if(!rows.length){cont.innerHTML='<div style="color:var(--muted);font-size:.8rem;text-align:center;padding:1rem;width:100%">No hay scooters pendientes de retorno</div>';return;}
   cont.innerHTML=rows.map(x=>`
-    <div onclick="scanQuickReturn('${x.rentalId}','${escForOnclick(x.code)}')" style="width:84px;min-height:84px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15rem;background:var(--bg3);border:1.5px solid var(--amber);border-radius:14px;cursor:pointer;padding:.3rem;transition:transform .1s" onmousedown="this.style.transform='scale(.94)'" onmouseup="this.style.transform='scale(1)'">
-      <div style="font-size:1.9rem;line-height:1">🛴</div>
+    <div onclick="scanQuickReturn('${x.rentalId}','${escForOnclick(x.code)}')" style="width:88px;padding:.4rem;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.25rem;background:var(--bg3);border:1.5px solid var(--amber);border-radius:14px;cursor:pointer;transition:transform .1s" onmousedown="this.style.transform='scale(.94)'" onmouseup="this.style.transform='scale(1)'">
+      ${scooterIconHtml(x.code)}
       <div style="font-size:.72rem;font-weight:700;color:var(--text);text-align:center;word-break:break-word">${x.code}</div>
       <div style="font-size:.62rem;color:var(--muted);text-align:center;line-height:1.2">${x.client}<br>#${x.consecutivo||'—'}</div>
     </div>`).join('');
