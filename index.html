@@ -743,6 +743,11 @@ input,textarea{-webkit-user-select:text!important;-moz-user-select:text!importan
   #users-list{grid-template-columns:1fr!important;}
   .dash-filter-row select{min-width:120px;font-size:.8rem;}
   .tab{font-size:.75rem;padding:.45rem .3rem;}
+  /* Tarjeta de usuario: en pantalla angosta, avatar+nombre+rol y los botones
+     de acción (Ver/Editar/✕) no caben en una sola fila y quedaban
+     amontonados unos sobre otros — se pasan a su propia fila. */
+  .user-card{flex-wrap:wrap;}
+  .user-actions{width:100%;justify-content:flex-end;margin-top:.6rem;}
 }
 @media(max-width:380px){
   .bn-item{font-size:.58rem;}
@@ -1054,6 +1059,8 @@ input,textarea{-webkit-user-select:text!important;-moz-user-select:text!importan
           <div style="font-size:.78rem;font-weight:700;color:#ff4444;letter-spacing:.06em;margin-bottom:.5rem">⚠ ZONA DE PELIGRO</div>
           <div style="font-size:.8rem;color:var(--muted);margin-bottom:.6rem;line-height:1.5">Si la app muestra registros que no están en Firebase (datos locales huérfanos), usa este botón para limpiarlos y cargar solo lo que está en la nube.</div>
           <button onclick="_fbSyncFromCloud()" style="background:rgba(255,170,0,.15);color:#ffaa00;border:1.5px solid rgba(255,170,0,.4);border-radius:10px;padding:.6rem 1.2rem;font-size:.85rem;font-weight:700;cursor:pointer;width:100%;margin-bottom:.75rem">☁ Limpiar datos locales y cargar desde Firebase</button>
+          <div style="font-size:.8rem;color:var(--muted);margin-bottom:.6rem;line-height:1.5">Elimina <strong style="color:var(--text)">solo las rentas</strong> (historial completo, de todos los stands) y deja todos los scooters marcados como disponibles. No toca usuarios, stands, scooters registrados, caja ni clientes.</div>
+          <button onclick="eliminarSoloRentas()" style="background:rgba(255,68,68,.12);color:#ff8888;border:1.5px solid rgba(255,68,68,.3);border-radius:10px;padding:.6rem 1.2rem;font-size:.85rem;font-weight:700;cursor:pointer;width:100%;margin-bottom:.75rem">🗑 Eliminar solo las rentas</button>
           <div style="font-size:.8rem;color:var(--muted);margin-bottom:.85rem;line-height:1.5">Elimina <strong style="color:var(--text)">todos</strong> los datos de la app (rentas, usuarios, stands, caja…) de forma permanente. Úsalo solo para entregar la app al cliente desde cero.</div>
           <button onclick="resetAllData()" style="background:rgba(255,68,68,.18);color:#ff6666;border:1.5px solid rgba(255,68,68,.4);border-radius:10px;padding:.6rem 1.2rem;font-size:.85rem;font-weight:700;cursor:pointer;width:100%">🗑 Reiniciar todos los datos</button>
         </div>
@@ -5470,6 +5477,24 @@ function resetAllData(){
   } else {
     doReset();
   }
+}
+
+// Borra solo el historial de rentas (todos los stands) y libera los scooters
+// que hayan quedado marcados "rented" apuntando a rentas ya borradas, sin
+// tocar usuarios, stands, inventario de scooters, caja ni clientes.
+function eliminarSoloRentas(){
+  if(!CU||CU.role!=='gerente')return;
+  var first=confirm('⚠ ¿Eliminar TODAS las rentas?\n\nEsto borra permanentemente el historial completo de rentas (activas, pendientes y cerradas) de todos los stands, y deja todos los scooters marcados como disponibles.\n\nNo se tocan usuarios, stands, scooters registrados, caja ni clientes.\n\nEsta acción NO se puede deshacer.');
+  if(!first)return;
+  var second=confirm('🔴 SEGUNDA CONFIRMACIÓN\n\n¿Confirmas que deseas borrar TODAS las rentas permanentemente?');
+  if(!second)return;
+  var scooters=(LS.get('sr_scooters')||[]).map(function(s){return Object.assign({},s,{status:'available'});});
+  LS.set('sr_scooters',scooters);
+  LS.set('sr_rentals',[]);
+  writeLog('reset-rentals','🗑 Gerente eliminó TODAS las rentas: '+CU.username,{});
+  toast('✔ Rentas eliminadas — scooters marcados disponibles');
+  refreshDashboard();
+  if(typeof renderCierreSupervisor==='function')renderCierreSupervisor();
 }
 
 function setPerfilTab(tab, el){
